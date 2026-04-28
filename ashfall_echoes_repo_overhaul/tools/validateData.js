@@ -35,6 +35,7 @@ function duplicateTopLevelKeys(fileName) {
 
 for (const id of duplicateTopLevelKeys("cards.json")) errors.push(`Duplicate card id ${id}`);
 for (const id of duplicateTopLevelKeys("relics.json")) errors.push(`Duplicate relic id ${id}`);
+for (const id of duplicateTopLevelKeys("enemies.json")) errors.push(`Duplicate enemy id ${id}`);
 
 for (const [wid, w] of Object.entries(weapons)) {
   if (!w.starter || !Array.isArray(w.starter)) errors.push(`Weapon ${wid} missing starter deck`);
@@ -56,12 +57,49 @@ for (const [cid, c] of Object.entries(cards)) {
   }
 }
 
-const validIntentTypes = new Set(["attack","buff","debuff","block","add_card","drain_energy_next_turn"]);
+const validEnemyTiers = new Set(["normal", "elite", "boss"]);
+const validMoveKeys = new Set([
+  "id","name","intentIcon","intentText","weight","cooldown","minTurn","maxUses","avoidRepeat",
+  "damage","hits","block","selfStatus","playerStatus","applyEnemy","applyPlayer","addCardToPlayerDeck",
+  "addTemporaryCardToDiscard","addTemporaryCardToHand","drainEnergyNextTurn","heal","cleanse","summon","phaseTrigger","special"
+]);
 for (const [eid, e] of Object.entries(enemies)) {
-  if (!e.name || !e.hp || !Array.isArray(e.intents)) errors.push(`Enemy ${eid} missing required fields`);
-  for (const intent of e.intents || []) {
-    if (!validIntentTypes.has(intent.type)) errors.push(`Enemy ${eid} has invalid intent type ${intent.type}`);
-    if (intent.card && !cards[intent.card]) errors.push(`Enemy ${eid} references missing card ${intent.card}`);
+  if (!e.name || !e.hp) errors.push(`Enemy ${eid} missing required fields`);
+  if (!validEnemyTiers.has(e.tier)) errors.push(`Enemy ${eid} has invalid tier ${e.tier}`);
+  if (!Array.isArray(e.archetypes) || !e.archetypes.length) errors.push(`Enemy ${eid} missing archetypes`);
+  for (const a of e.archetypes || []) if (!validArchetypes.has(a)) errors.push(`Enemy ${eid} has invalid archetype ${a}`);
+  if (!Array.isArray(e.moves)) errors.push(`Enemy ${eid} moves must be an array`);
+  const moveIds = new Set();
+  for (const move of e.moves || []) {
+    if (!move.id || !move.name) errors.push(`Enemy ${eid} has move missing id or name`);
+    if (move.id) {
+      if (moveIds.has(move.id)) errors.push(`Enemy ${eid} has duplicate move id ${move.id}`);
+      moveIds.add(move.id);
+    }
+    if (move.weight !== undefined && (!(typeof move.weight === "number") || move.weight <= 0)) {
+      errors.push(`Enemy ${eid} move ${move.id || move.name} has invalid weight`);
+    }
+    for (const key of Object.keys(move)) {
+      if (!validMoveKeys.has(key)) errors.push(`Enemy ${eid} move ${move.id || move.name} has unknown field ${key}`);
+    }
+    for (const cardField of ["addCardToPlayerDeck", "addTemporaryCardToDiscard", "addTemporaryCardToHand"]) {
+      if (move[cardField] && !cards[move[cardField]]) errors.push(`Enemy ${eid} move ${move.id || move.name} references missing card ${move[cardField]}`);
+    }
+  }
+  if (e.tier === "boss" && e.phases) {
+    e.phases.forEach((phase, idx) => {
+      if (!(phase.threshold > 0 && phase.threshold < 1)) errors.push(`Enemy ${eid} phase ${idx} has invalid threshold`);
+      if (!phase.name) errors.push(`Enemy ${eid} phase ${idx} missing name`);
+      if (!Array.isArray(phase.moves)) errors.push(`Enemy ${eid} phase ${idx} moves must be an array`);
+      const phaseMoveIds = new Set();
+      for (const move of phase.moves || []) {
+        if (!move.id || !move.name) errors.push(`Enemy ${eid} phase ${idx} has move missing id or name`);
+        if (move.id) {
+          if (phaseMoveIds.has(move.id)) errors.push(`Enemy ${eid} phase ${idx} duplicate move id ${move.id}`);
+          phaseMoveIds.add(move.id);
+        }
+      }
+    });
   }
 }
 

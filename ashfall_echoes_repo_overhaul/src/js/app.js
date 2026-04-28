@@ -294,6 +294,13 @@ function hydrateSave(){
   S.flags = S.flags || {};
   S.relics = (Array.isArray(S.relics) ? S.relics : []).filter((id)=>DB.relics[id]);
   normalizeDeckState();
+  if(S.combat?.enemy){
+    S.combat.enemy.moves = normalizeEnemyMoves(S.combat.enemy);
+    S.combat.enemyState = S.combat.enemyState || { turn:S.combat.turn || 1, moveUses:{}, moveCooldowns:{}, lastMoves:[], currentMoveId:null };
+    if(!S.combat.enemyState.currentMoveId) S.combat.enemyState.currentMoveId = chooseEnemyMove();
+    S.combat.enemy.phaseIndex = Number.isInteger(S.combat.enemy.phaseIndex) ? S.combat.enemy.phaseIndex : -1;
+    S.combat.enemy.phaseName = S.combat.enemy.phaseName || "Phase 1";
+  }
   pendingVictoryRewards = null;
 }
 
@@ -410,6 +417,7 @@ function drawWorld(){
           <h3>${NODE_ICONS[selectedNode.type]} ${selectedNode.title}</h3>
           <p><b>${mapTypeLabel(selectedNode.type)}</b> · ${selectedNode.description}</p>
           <p class="small">${NODE_RISK[selectedNode.type]}</p>
+          ${encounterPreviewForNode(selectedNode)}
           ${selectedReachable ? `<button onclick="enterSelectedNode()">Enter</button>` : `<div class="locked-msg">Locked: follow connected routes from your current position.</div>`}
         ` : `<h3>Choose a node</h3><p>Select a reachable route node to preview risk and reward.</p>`}
         <hr>
@@ -430,21 +438,75 @@ function selectMapNode(nodeId){
   drawWorld();
 }
 
-function pickEnemyForNode(type){
-  const enemies = Object.entries(DB.enemies);
-  const bosses = enemies.filter(([, enemy])=>enemy.boss).map(([id])=>id);
-  const elites = enemies.filter(([, enemy])=>enemy.elite).map(([id])=>id);
-  const regular = enemies.filter(([, enemy])=>!enemy.elite && !enemy.boss).map(([id])=>id);
-  if(type === "boss") return pick(bosses);
-  if(type === "elite") return pick(elites.length ? elites : regular);
-  return pick(regular.length ? regular : enemies.map(([id])=>id));
+function normalizeEnemyMoves(enemy){
+  const legacyIntents = (enemy.intents || []).map((intent, idx)=>({
+    id: intent.id || `legacy_${idx}`,
+    name: intent.name || `Intent ${idx + 1}`,
+    intentIcon: intent.intentIcon || intent.icon || "?",
+    intentText: intent.intentText || intentText(intent),
+    weight: 1,
+    damage: intent.damage || 0,
+    hits: intent.hits || 1,
+    block: intent.block,
+    applyEnemy: intent.status,
+    applyPlayer: intent.applyPlayer || intent.apply,
+    addTemporaryCardToDiscard: intent.type === "add_card" && intent.to === "discard" ? intent.card : null,
+    addCardToPlayerDeck: intent.type === "add_card" && intent.to === "draw" ? intent.card : null,
+    drainEnergyNextTurn: intent.type === "drain_energy_next_turn" ? intent.amount : undefined,
+    heal: intent.heal
+  }));
+  return (enemy.moves || legacyIntents).map((move, idx)=>({
+    id: move.id || `move_${idx}`,
+    name: move.name || `Move ${idx + 1}`,
+    intentIcon: move.intentIcon || move.icon || "?",
+    intentText: move.intentText || move.name || "Unknown move",
+    weight: move.weight > 0 ? move.weight : 1,
+    hits: move.hits || 1,
+    avoidRepeat: Boolean(move.avoidRepeat),
+    ...move
+  }));
+}
+
+function getEnemyPoolForNode(node){
+  const type = typeof node === "string" ? node : node?.type;
+  const act = S?.map?.act || 1;
+  const all = Object.entries(DB.enemies || {}).filter(([, enemy])=>(enemy.act || 1) === act);
+  if(type === "boss") return all.filter(([, enemy])=>enemy.tier === "boss").map(([id])=>id);
+  if(type === "elite") return all.filter(([, enemy])=>enemy.tier === "elite").map(([id])=>id);
+  if(type === "event") return all.filter(([, enemy])=>enemy.tier === "normal").map(([id])=>id);
+  return all.filter(([, enemy])=>enemy.tier === "normal").map(([id])=>id);
+}
+
+function pickEnemyForNode(node){
+  const pool = getEnemyPoolForNode(node);
+  const fallback = Object.keys(DB.enemies || {});
+  return pick(pool.length ? pool : fallback);
+}
+
+function encounterPreviewForNode(node){
+  const pool = getEnemyPoolForNode(node).map((id)=>DB.enemies[id]).filter(Boolean);
+  if(node.type === "boss"){
+    const boss = pool[0];
+    if(!boss) return "<p class=\"small\">Unknown gate omen.</p>";
+    return `<p><b>Boss:</b> ${boss.name}</p><p class="small">⚠ Ominous trial ahead. Expect phase shifts.</p>${renderArchetypeChips(boss.archetypes || [])}`;
+  }
+  if(node.type === "elite"){
+    const names = pool.map((enemy)=>enemy.name).slice(0, 3).join(" · ");
+    const arcs = [...new Set(pool.flatMap((enemy)=>enemy.archetypes || []))];
+    return `<p><b>Possible Elite:</b> ${names || "Unknown predator"}</p><p class="small">High risk encounter.</p>${renderArchetypeChips(arcs)}`;
+  }
+  if(node.type === "combat"){
+    const arcs = [...new Set(pool.flatMap((enemy)=>enemy.archetypes || []))];
+    return `<p><b>Unknown hollow patrol</b></p><p class="small">Expected patterns vary by archetype.</p>${renderArchetypeChips(arcs.slice(0, 6))}`;
+  }
+  return "";
 }
 
 function enterSelectedNode(){
   const node = nodeById(S.selectedNodeId);
   if(!node || !isNodeReachable(node)) return toast("That route is not reachable yet.");
   S.mapEncounter = { nodeId:node.id, type:node.type };
-  if(["combat","elite","boss"].includes(node.type)) return startCombat(pickEnemyForNode(node.type), node.id);
+  if(["combat","elite","boss"].includes(node.type)) return startCombat(pickEnemyForNode(node), node.id);
   if(node.type === "event"){
     runEvent(pick(["grave","well","candle_girl"]));
     return completeCurrentNode({ nodeId:node.id, text:"Omen answered." });
@@ -521,9 +583,9 @@ function animatePlayerAction(card){
 
 function animateEnemyIntent(intent){
   if(!intent) return;
-  if(intent.type === "attack"){
+  if(intent.damage){
     animateActor("#enemy", "attack", ANIMATION_PROFILE.enemy.attackMs);
-    if((intent.damage || 0) >= 18) pulseStage("shake-heavy", ANIMATION_PROFILE.camera.heavyShakeMs);
+    if((intent.damage || 0) * (intent.hits || 1) >= 18) pulseStage("shake-heavy", ANIMATION_PROFILE.camera.heavyShakeMs);
     return;
   }
   animateActor("#enemy", "chant", ANIMATION_PROFILE.enemy.castMs);
@@ -707,7 +769,7 @@ function triggerRelics(hook, payload = {}){
         }
         break;
       case "red_thread_spool":
-        if(hook === "turnEnd" && (S.combat.enemy.elite || S.combat.enemy.boss) && (S.combat.enemy.status.Bleed || 0) > 0){
+        if(hook === "turnEnd" && ["elite","boss"].includes(S.combat.enemy.tier) && (S.combat.enemy.status.Bleed || 0) > 0){
           const bleed = S.combat.enemy.status.Bleed;
           S.combat.enemy.hp -= bleed;
           S.combat.enemy.status.Bleed = Math.max(0, S.combat.enemy.status.Bleed - 1);
@@ -799,6 +861,9 @@ function startCombat(enemyId, nodeId = null){
   if(!e) throw new Error(`Unknown enemy: ${enemyId}`);
   if(S.truePilgrimage) e.hp = Math.floor(e.hp * 1.3);
   e.maxHp = e.hp; e.turn = 0; e.block = 0; e.status = {};
+  e.moves = normalizeEnemyMoves(e);
+  e.phaseIndex = -1;
+  e.phaseName = e.phaseName || "Phase 1";
   S.pendingNodeCompletion = nodeId;
   const deck = S.deck.slice();
   S.combat = {
@@ -808,8 +873,10 @@ function startCombat(enemyId, nodeId = null){
     fortify:0, str:0, weak:0, frail:0, blight:0, bleed:0, bonus:0, bled:false,
     counter:0, turn:1, firstAtk:true, firstSkill:true, skillsPlayed:0, blockMeter:0,
     powers:{}, log:[`${e.name} appears.`], nextTurnDrain:0, locked:false, cardsPlayedThisTurn:0, attacksPlayed:0,
-    drawBonusNextTurn:0, retainBlockNextTurn:0, flags:{}
+    drawBonusNextTurn:0, retainBlockNextTurn:0, flags:{},
+    enemyState:{ turn:1, moveUses:{}, moveCooldowns:{}, lastMoves:[], currentMoveId:null }
   };
+  S.combat.enemyState.currentMoveId = chooseEnemyMove();
   triggerRelics("combatStart", { enemy:e });
   drawCards(5);
   combatUI();
@@ -827,31 +894,63 @@ function drawCards(n){
     }
   }
 }
-function currentIntent(){
+function activeEnemyMoves(){
   const E = S.combat.enemy;
-  return E.intents[E.turn % E.intents.length];
+  const phaseMoves = E.phases?.[E.phaseIndex]?.moves;
+  return normalizeEnemyMoves({ moves: phaseMoves?.length ? phaseMoves : E.moves });
+}
+function currentIntent(){
+  const state = S.combat.enemyState;
+  return activeEnemyMoves().find((move)=>move.id === state.currentMoveId) || activeEnemyMoves()[0];
+}
+function canEnemyUseMove(move, enemyState){
+  const turn = enemyState.turn;
+  if((move.minTurn || 1) > turn) return false;
+  if(move.maxUses && (enemyState.moveUses[move.id] || 0) >= move.maxUses) return false;
+  if((enemyState.moveCooldowns[move.id] || 0) > 0) return false;
+  if(move.avoidRepeat && enemyState.lastMoves[0] === move.id) return false;
+  return true;
+}
+function rememberEnemyMove(moveId){
+  const state = S.combat.enemyState;
+  state.lastMoves.unshift(moveId);
+  state.lastMoves = state.lastMoves.slice(0, 3);
+}
+function chooseEnemyMove(){
+  const state = S.combat.enemyState;
+  const moves = activeEnemyMoves();
+  const valid = moves.filter((move)=>canEnemyUseMove(move, state));
+  const pickable = valid.length ? valid : moves;
+  let total = pickable.reduce((sum, move)=>sum + (move.weight || 1), 0);
+  let roll = Math.random() * total;
+  for(const move of pickable){
+    roll -= (move.weight || 1);
+    if(roll <= 0) return move.id;
+  }
+  return pickable[0]?.id;
+}
+function getEnemyIntentDescription(move){
+  if(!move) return "? Unknown";
+  const parts = [];
+  if(move.damage){
+    const hits = move.hits || 1;
+    parts.push(hits > 1 ? `${move.damage}x${hits} damage` : `${move.damage} damage`);
+  }
+  if(move.block) parts.push(`${move.block} Block`);
+  if(move.heal) parts.push(`Heal ${move.heal}`);
+  if(move.applyEnemy) parts.push(...Object.entries(move.applyEnemy).map(([k,v])=>`${k} ${v} (self)`));
+  if(move.selfStatus) parts.push(...Object.entries(move.selfStatus).map(([k,v])=>`${k} ${v} (self)`));
+  if(move.applyPlayer) parts.push(...Object.entries(move.applyPlayer).map(([k,v])=>`${k} ${v}`));
+  if(move.playerStatus) parts.push(...Object.entries(move.playerStatus).map(([k,v])=>`${k} ${v}`));
+  if(move.addTemporaryCardToDiscard || move.addCardToPlayerDeck || move.addTemporaryCardToHand){
+    const card = move.addTemporaryCardToDiscard || move.addCardToPlayerDeck || move.addTemporaryCardToHand;
+    parts.push(`Adds ${DB.cards[card]?.name || card}`);
+  }
+  if(move.drainEnergyNextTurn) parts.push(`-${move.drainEnergyNextTurn} Energy next turn`);
+  return `${move.intentIcon || "?"} ${move.name} · ${parts.join(" + ") || move.intentText || "Special"}`;
 }
 function intentText(it){
-  if(!it) return "? Unknown";
-  const icon = it.icon || "?";
-  if(it.type === "attack"){
-    const parts = [`${it.damage || 0} damage`];
-    if(it.apply) parts.push(...Object.entries(it.apply).map(([k,v]) => `${k} ${v}`));
-    if(it.applyPlayer) parts.push(...Object.entries(it.applyPlayer).map(([k,v]) => `${k} ${v}`));
-    return `${icon} ${it.name} · ${parts.join(" + ")}`;
-  }
-  if(it.type === "debuff"){
-    const text = Object.entries(it.applyPlayer || {}).map(([k,v]) => `${k} ${v}`).join(", ");
-    return `${icon} ${it.name} · ${text || "Debuff"}`;
-  }
-  if(it.type === "buff"){
-    const text = Object.entries(it.status || {}).map(([k,v]) => `${k} ${v}`).join(", ");
-    return `${icon} ${it.name} · ${text || "Buff"}`;
-  }
-  if(it.type === "block") return `${icon} ${it.name} · ${it.block} block`;
-  if(it.type === "add_card") return `${icon} ${it.name} · Adds ${DB.cards[it.card]?.name || it.card}`;
-  if(it.type === "drain_energy_next_turn") return `${icon} ${it.name} · -${it.amount} energy next turn`;
-  return `${icon} ${it.name}`;
+  return getEnemyIntentDescription(it);
 }
 
 function statusInfo(key){
@@ -867,15 +966,15 @@ function combatUI(){
   const enemyStatuses = Object.entries(E.status || {}).filter(([,v])=>v>0);
   const playerStatuses = [["Strength", C.str||0], ["Weak", C.weak||0], ["Frail", C.frail||0], ["Blight", C.blight||0], ["Bleed", C.bleed||0], ["Ward", C.ward||0], ["Fortify", C.fortify||0]].filter(([,v])=>v>0);
   const hp = Math.max(0, E.hp/E.maxHp*100), php = Math.max(0, S.hp/S.maxHp*100);
-  const intentDanger = it?.type === "attack" && (it.damage || 0) >= 15;
+  const intentDanger = (it?.damage || 0) * (it?.hits || 1) >= 15;
   G.innerHTML = `<div class="combat">
-    <div class="top"><div><div class="logo">${E.name}</div><div class="small">Turn ${C.turn}</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill energy">${C.energy}⚡</span></div></div>
+    <div class="top"><div><div class="logo">${E.name}</div><div class="small">Turn ${C.turn}</div><div class="enemy-meta"><span class="tier tier-${E.tier || "normal"}">${(E.tier || "normal").toUpperCase()}</span>${E.phaseName ? `<span class="phase-pill">${E.phaseName}</span>` : ""}</div>${renderArchetypeChips(E.archetypes || [])}<div class="small">${E.behaviorHint || ""}</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill energy">${C.energy}⚡</span></div></div>
     <div class="stage" id="stage">
       <div class="embers"></div>
       <div class="fog"></div>
       <div class="bars"><div class="bar"><div class="fill" style="width:${hp}%"></div></div><div class="bar"><div class="fill" style="width:${php}%"></div></div></div>
       <div class="intent ${intentDanger ? "intent-danger" : ""}">${intentText(it)}</div>
-      <div class="enemy ${E.class || ""}" id="enemy"><div class="core"></div><div class="head"></div><div class="eye"></div><div class="robe"></div><div class="bells"></div><div class="face"></div></div>
+      <div class="enemy ${E.class || ""} tier-${E.tier || "normal"}" id="enemy"><div class="core"></div><div class="head"></div><div class="eye"></div><div class="robe"></div><div class="bells"></div><div class="face"></div></div>
       <div class="player player-combat"><div class="cloak"></div><div class="head"></div><div class="body"></div><div class="lamp"></div><div class="blade"></div></div>
     </div>
     <div class="combat-actions"><div>Block ${C.block} · <button onclick="showPile('draw')">Draw ${C.draw.length}</button> · <button onclick="showPile('discard')">Discard ${C.discard.length}</button> · <button onclick="showPile('exhaust')">Exhaust ${C.exhaust.length}</button> · <button onclick="showDeck()">Deck</button> · <button onclick="showCombatLog()">Combat Log</button>${statusChips(enemyStatuses)}${statusChips(playerStatuses)}<div class="log">${C.log.slice(-3).join(" / ")}</div></div><button onclick="endTurn()" ${C.locked ? "disabled" : ""}>End Turn</button></div>
@@ -973,6 +1072,98 @@ function applyPlayerStatus(obj, source = "self"){
     floatFeedback(`${k} +${v}`, "player");
   });
 }
+
+function maybeTriggerBossPhase(){
+  const C = S.combat;
+  const E = C.enemy;
+  if(E.tier !== "boss" || !Array.isArray(E.phases)) return false;
+  const hpRatio = E.hp / E.maxHp;
+  for(let i = 0; i < E.phases.length; i++){
+    const phase = E.phases[i];
+    if(E.phaseIndex < i && hpRatio <= phase.threshold){
+      E.phaseIndex = i;
+      E.phaseName = phase.name;
+      C.log.push(`${E.name} enters phase: ${phase.name}.`);
+      floatFeedback(phase.name, "center");
+      if(phase.onEnter?.applyEnemy) applyEnemyStatus(phase.onEnter.applyEnemy);
+      if(phase.onEnter?.applyPlayer) applyPlayerStatus(phase.onEnter.applyPlayer, "enemy");
+      if(phase.onEnter?.block){
+        E.block = (E.block || 0) + phase.onEnter.block;
+        floatFeedback(`+${phase.onEnter.block} Block`, "enemy");
+      }
+      if(phase.onEnter?.special?.id === "burnPunish"){
+        if((C.burn || 0) > 0){
+          applyEnemyStatus({ Burn: phase.onEnter.special.enemyBurnIfPlayerAlreadyBurning || 1 });
+        } else {
+          applyPlayerStatus({ Burn: phase.onEnter.special.playerBurn || 1 }, "enemy");
+        }
+      }
+      C.enemyState.currentMoveId = chooseEnemyMove();
+      return true;
+    }
+  }
+  return false;
+}
+
+function performEnemyMove(move){
+  const C = S.combat;
+  const E = C.enemy;
+  animateEnemyIntent(move);
+  if(move.damage){
+    const hits = move.hits || 1;
+    let totalTaken = 0;
+    for(let i=0;i<hits;i++){
+      let dmg = move.damage + (E.status.Strength || 0);
+      if(E.status.Weak > 0) dmg = Math.floor(dmg * 0.75);
+      if(move.special?.id === "bonusIfPlayerStatus" && (C[move.special.status?.toLowerCase()] || 0) > 0){
+        dmg += move.special.bonusDamage || 0;
+      }
+      dmg = modifyByRelics("modifyEnemyIntentDamage", dmg, { firstEnemyAttack:E.turn === 0 && i === 0 });
+      const blocked = Math.min(C.block, dmg);
+      const taken = dmg - blocked;
+      C.block -= blocked;
+      S.hp -= taken;
+      totalTaken += taken;
+      if(taken > 0){
+        animateActor(".player-combat", "hurt", ANIMATION_PROFILE.player.hurtMs);
+        if(hits <= 2 || i === hits - 1) floatFeedback(`-${taken}`, "player");
+      }
+      if(C.counter){
+        E.hp -= C.counter;
+        C.log.push(`Counter reflects ${C.counter}.`);
+      }
+    }
+    C.log.push(`${E.name} uses ${move.name} for ${totalTaken} total.`);
+  }
+  if(move.block){
+    E.block = (E.block || 0) + move.block;
+    C.log.push(`${E.name} gains ${move.block} Block.`);
+    floatFeedback(`+${move.block} Block`, "enemy");
+  }
+  if(move.heal){
+    E.hp = Math.min(E.maxHp, E.hp + move.heal);
+    C.log.push(`${E.name} heals ${move.heal}.`);
+    floatFeedback(`+${move.heal}`, "enemy");
+  }
+  if(move.applyEnemy || move.selfStatus) applyEnemyStatus({ ...(move.applyEnemy || {}), ...(move.selfStatus || {}) });
+  if(move.applyPlayer || move.playerStatus) applyPlayerStatus({ ...(move.applyPlayer || {}), ...(move.playerStatus || {}) }, "enemy");
+  if(move.addCardToPlayerDeck){
+    C.draw.push(createCardInstance(move.addCardToPlayerDeck, { temporary:true }));
+    C.log.push(`${DB.cards[move.addCardToPlayerDeck]?.name || move.addCardToPlayerDeck} enters your draw pile.`);
+  }
+  if(move.addTemporaryCardToDiscard){
+    C.discard.push(createCardInstance(move.addTemporaryCardToDiscard, { temporary:true }));
+    C.log.push(`${DB.cards[move.addTemporaryCardToDiscard]?.name || move.addTemporaryCardToDiscard} enters your discard.`);
+  }
+  if(move.addTemporaryCardToHand){
+    C.hand.push(createCardInstance(move.addTemporaryCardToHand, { temporary:true }));
+    C.log.push(`${DB.cards[move.addTemporaryCardToHand]?.name || move.addTemporaryCardToHand} enters your hand.`);
+  }
+  if(move.drainEnergyNextTurn){
+    C.nextTurnDrain = Math.max(C.nextTurnDrain || 0, move.drainEnergyNextTurn);
+    floatFeedback(`-${move.drainEnergyNextTurn} Energy`, "center");
+  }
+}
 function resolvePotentialLethalDamage(){
   if(S.hp > 0) return false;
   if(hasRelic("lantern_heart") && !S.flags?.mercyThreadUsed && (S.combat?.ward || 0) > 0){
@@ -1065,6 +1256,7 @@ async function playCard(i){
 
   await sleep(animDelay(220));
   if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
+  if(C.enemy.hp > 0) maybeTriggerBossPhase();
   if(C.enemy.hp<=0){ C.locked = false; return victory(); }
   C.locked = false;
   safeCombatUIUpdate();
@@ -1098,45 +1290,25 @@ async function endTurn(){
   if(E.hp<=0){ C.locked = false; return victory(); }
   await sleep(animDelay(120));
 
-  if(it.type==="attack"){
-    animateEnemyIntent(it);
-    let dmg = it.damage + (E.status.Strength||0);
-    if(E.status.Weak>0) dmg = Math.floor(dmg*.75);
-    dmg = modifyByRelics("modifyEnemyIntentDamage", dmg, { firstEnemyAttack:E.turn === 0 });
-    const blocked = Math.min(C.block, dmg);
-    const taken = dmg - blocked;
-    C.block -= blocked; S.hp -= taken;
-    if(taken > 0){
-      animateActor(".player-combat", "hurt", ANIMATION_PROFILE.player.hurtMs);
-      floatFeedback(`-${taken}`, "player");
-    }
-    C.log.push(`${E.name} hits for ${taken}.`);
-    if(C.counter){ E.hp -= C.counter; C.log.push(`Counter reflects ${C.counter}.`); }
-    if(it.apply) applyPlayerStatus(it.apply, "enemy");
-    if(it.applyPlayer) applyPlayerStatus(it.applyPlayer, "enemy");
-  }
-  if(it.type==="buff") applyEnemyStatus(it.status);
-  if(it.type==="debuff"){
-    animateEnemyIntent(it);
-    applyPlayerStatus(it.applyPlayer, "enemy");
-  }
-  if(it.type==="block"){ E.block = (E.block||0) + it.block; C.log.push(`${E.name} gains ${it.block} Block.`); floatFeedback(`+${it.block} Block`, "enemy"); }
-  if(it.type==="add_card"){
-    const generated = createCardInstance(it.card);
-    if(it.to==="discard") C.discard.push(generated); else C.draw.push(generated);
-    C.log.push(`${DB.cards[it.card].name} enters your ${it.to}.`);
-  }
-  if(it.type==="drain_energy_next_turn"){
-    C.nextTurnDrain = it.amount;
-    C.log.push("Your tempo is stolen.");
-    floatFeedback(`-${it.amount} Energy`, "center");
+  performEnemyMove(it);
+  if(E.specialRules?.includes("gainStrengthIfBlocked") && (E.block || 0) > 0){
+    applyEnemyStatus({ Strength: 1 });
+    C.log.push(`${E.name}'s oath hardens: +1 Strength.`);
   }
 
   if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
+  maybeTriggerBossPhase();
   if(E.hp<=0){ C.locked = false; return victory(); }
+
+  const state = C.enemyState;
+  state.moveUses[it.id] = (state.moveUses[it.id] || 0) + 1;
+  if(it.cooldown) state.moveCooldowns[it.id] = it.cooldown;
+  Object.keys(state.moveCooldowns).forEach((id)=>state.moveCooldowns[id] = Math.max(0, state.moveCooldowns[id] - 1));
+  rememberEnemyMove(it.id);
 
   E.turn++;
   C.turn++;
+  state.turn = C.turn;
   C.energy = 3 - (C.nextTurnDrain||0);
   C.nextTurnDrain = 0;
   C.block = Math.max(C.fortify || 0, C.retainBlockNextTurn || 0);
@@ -1159,16 +1331,18 @@ async function endTurn(){
   triggerRelics("turnStart", { turn:C.turn });
   drawCards(5 + (C.drawBonusNextTurn || 0));
   C.drawBonusNextTurn = 0;
+  state.currentMoveId = chooseEnemyMove();
   C.locked = false;
   safeCombatUIUpdate();
 }
 function victory(){
-  const E = S.combat.enemy, boss = E.boss;
+  const E = S.combat.enemy, boss = E.tier === "boss";
+  const elite = E.tier === "elite";
   const completionNode = S.pendingNodeCompletion;
-  S.kills++; S.gold += E.elite ? 65 : boss ? 100 : 30;
+  S.kills++; S.gold += elite ? 65 : boss ? 100 : 30;
   S.combat = null;
   if(completionNode){
-    const source = boss ? "boss" : E.elite ? "elite" : "combat";
+    const source = boss ? "boss" : elite ? "elite" : "combat";
     pendingVictoryRewards = { nodeId:completionNode, source, summary: boss ? "Boss defeated." : "Won battle.", showCardAfterRelic: source !== "combat" };
     if(source === "combat") showCardReward(source, { nodeId: completionNode, summary: pendingVictoryRewards.summary });
     else showRelicReward(source);
