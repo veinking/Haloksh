@@ -1,183 +1,517 @@
 {
-  "ash_hound": {
-    "name": "Ash Hound",
-    "class": "hound",
-    "hp": 30,
-    "role": "Striker",
-    "intents": [
-      {
-        "name": "Bite",
-        "type": "attack",
-        "damage": 6,
-        "icon": "\u2694"
-      },
-      {
-        "name": "Howl",
-        "type": "buff",
-        "status": {
-          "Strength": 2
-        },
-        "icon": "\u2b06"
-      },
-      {
-        "name": "Tear",
-        "type": "attack",
-        "damage": 10,
-        "apply": {
-          "Bleed": 1
-        },
-        "icon": "\ud83e\ude78"
-      }
-    ]
-  },
-  "bell_rat_swarm": {
-    "name": "Bell-Rat Swarm",
+  "ash_rat": {
+    "name": "Ash Rat",
     "class": "rat",
     "hp": 24,
-    "role": "Swarmer",
-    "intents": [
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["tempo", "bleed"],
+    "description": "A soot-slick scavenger that rushes in and out of range.",
+    "behaviorHint": "Fast opener with repeated scratches.",
+    "moves": [
       {
-        "name": "Nibble",
-        "type": "attack",
-        "damage": 4,
-        "icon": "\u2694"
+        "id": "skittering_scratch",
+        "name": "Skittering Scratch",
+        "intentIcon": "⚔",
+        "intentText": "Deal 3 damage 3 times.",
+        "damage": 3,
+        "hits": 3,
+        "weight": 4,
+        "avoidRepeat": true
       },
       {
-        "name": "Swarm",
-        "type": "attack",
-        "damage": 8,
-        "icon": "\u2694"
-      },
-      {
-        "name": "Plague Scratch",
-        "type": "attack",
-        "damage": 6,
-        "apply": {
-          "Blight": 1
+        "id": "flea_bite",
+        "name": "Flea Bite",
+        "intentIcon": "🩸",
+        "intentText": "Deal 5 damage and apply Bleed 1.",
+        "damage": 5,
+        "applyPlayer": {
+          "Bleed": 1
         },
-        "icon": "\u2620"
+        "weight": 2
       }
     ]
   },
-  "hollow_pilgrim": {
-    "name": "Hollow Pilgrim",
-    "class": "pilgrim",
-    "hp": 38,
-    "role": "Afflicter",
-    "intents": [
+  "hollow_spearman": {
+    "name": "Hollow Spearman",
+    "class": "knight",
+    "hp": 34,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["block", "tempo"],
+    "description": "A rank-and-file husk that keeps clean form even in death.",
+    "behaviorHint": "Alternates guarded stance with precise thrusts.",
+    "moves": [
       {
-        "name": "Censer Smoke",
-        "type": "debuff",
+        "id": "guarded_stance",
+        "name": "Guarded Stance",
+        "intentIcon": "🛡",
+        "intentText": "Gain 8 Block.",
+        "block": 8,
+        "weight": 3,
+        "avoidRepeat": true
+      },
+      {
+        "id": "ashen_thrust",
+        "name": "Ashen Thrust",
+        "intentIcon": "⚔",
+        "intentText": "Deal 9 damage.",
+        "damage": 9,
+        "weight": 4
+      }
+    ]
+  },
+  "lanternless_pilgrim": {
+    "name": "Lanternless Pilgrim",
+    "class": "pilgrim",
+    "hp": 36,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["control", "ward"],
+    "description": "A prayer-worn wanderer who snuffs resolve with smoke.",
+    "behaviorHint": "Applies Weak before following up with modest strikes.",
+    "moves": [
+      {
+        "id": "censor_fog",
+        "name": "Censer Fog",
+        "intentIcon": "🧠",
+        "intentText": "Apply Weak 1.",
         "applyPlayer": {
           "Weak": 1
         },
-        "icon": "\ud83e\udde0"
+        "weight": 3,
+        "avoidRepeat": true
       },
       {
-        "name": "Staff Hit",
-        "type": "attack",
+        "id": "staff_tap",
+        "name": "Staff Tap",
+        "intentIcon": "⚔",
+        "intentText": "Deal 7 damage.",
         "damage": 7,
-        "icon": "\u2694"
-      },
-      {
-        "name": "Curse Card",
-        "type": "add_card",
-        "to": "discard",
-        "card": "dissonance",
-        "icon": "\u2620"
+        "weight": 4
       }
     ]
   },
-  "candle_thief": {
-    "name": "Candle Thief",
-    "class": "thief",
-    "hp": 54,
-    "role": "Elite Trickster",
-    "elite": true,
-    "intents": [
+  "cinder_wretch": {
+    "name": "Cinder Wretch",
+    "class": "hound",
+    "hp": 33,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["burn", "tempo"],
+    "description": "An ember-choked corpse that leaves flame in every wound.",
+    "behaviorHint": "Sets up Burn before escalating damage.",
+    "moves": [
       {
-        "name": "Dash Cut",
-        "type": "attack",
-        "damage": 10,
-        "icon": "\u2694"
+        "id": "ember_claw",
+        "name": "Ember Claw",
+        "intentIcon": "🔥",
+        "intentText": "Deal 6 damage and apply Burn 1.",
+        "damage": 6,
+        "applyPlayer": {
+          "Burn": 1
+        },
+        "weight": 4
       },
       {
-        "name": "Steal Tempo",
-        "type": "drain_energy_next_turn",
-        "amount": 1,
-        "icon": "\u26a1"
-      },
-      {
-        "name": "Knife Flurry",
-        "type": "attack",
-        "damage": 15,
-        "icon": "\u2694"
+        "id": "coal_spit",
+        "name": "Coal Spit",
+        "intentIcon": "🔥",
+        "intentText": "Apply Burn 2.",
+        "applyPlayer": {
+          "Burn": 2
+        },
+        "weight": 2,
+        "cooldown": 2
       }
     ]
   },
-  "bell_knight": {
-    "name": "Bell Knight Penitent",
+  "bone_collector": {
+    "name": "Bone Collector",
     "class": "knight",
-    "hp": 88,
-    "role": "Elite Defender",
-    "elite": true,
-    "intents": [
+    "hp": 42,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["strength", "block"],
+    "description": "A toll-keeper who builds momentum from stolen remains.",
+    "behaviorHint": "Grows Strength over time and punishes long fights.",
+    "moves": [
       {
-        "name": "Armor Up",
-        "type": "block",
-        "block": 18,
-        "icon": "\ud83d\udee1"
-      },
-      {
-        "name": "Bell Drag",
-        "type": "attack",
-        "damage": 13,
-        "applyPlayer": {
-          "Frail": 1
+        "id": "heap_tithe",
+        "name": "Heap Tithe",
+        "intentIcon": "⬆",
+        "intentText": "Gain Strength 1.",
+        "applyEnemy": {
+          "Strength": 1
         },
-        "icon": "\u2694"
+        "weight": 3,
+        "avoidRepeat": true
       },
       {
-        "name": "Delayed Slam",
-        "type": "attack",
-        "damage": 24,
-        "icon": "\ud83d\udd28"
+        "id": "jaw_mace",
+        "name": "Jaw Mace",
+        "intentIcon": "⚔",
+        "intentText": "Deal 8 damage.",
+        "damage": 8,
+        "weight": 4
+      },
+      {
+        "id": "bone_screen",
+        "name": "Bone Screen",
+        "intentIcon": "🛡",
+        "intentText": "Gain 7 Block.",
+        "block": 7,
+        "weight": 2
       }
     ]
   },
-  "bell_mother": {
-    "name": "The Bell Mother",
-    "class": "mother",
-    "hp": 240,
-    "role": "Boss",
-    "boss": true,
-    "intents": [
+  "debt_marked_beggar": {
+    "name": "Debt-Marked Beggar",
+    "class": "pilgrim",
+    "hp": 30,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["curse", "control"],
+    "description": "A hollow supplicant who pays its debts by sharing them.",
+    "behaviorHint": "Adds Dissonance and chips away while you stumble.",
+    "moves": [
       {
-        "name": "Infant Bell",
-        "type": "add_card",
-        "to": "discard",
-        "card": "dissonance",
-        "icon": "\u2620"
+        "id": "beggar_toll",
+        "name": "Beggar's Toll",
+        "intentIcon": "☠",
+        "intentText": "Add temporary Dissonance to discard.",
+        "addTemporaryCardToDiscard": "dissonance",
+        "weight": 3,
+        "avoidRepeat": true
       },
       {
-        "name": "Choir Lash",
-        "type": "attack",
+        "id": "hunger_jab",
+        "name": "Hunger Jab",
+        "intentIcon": "⚔",
+        "intentText": "Deal 6 damage.",
+        "damage": 6,
+        "weight": 4
+      }
+    ]
+  },
+  "split_maw_crow": {
+    "name": "Split-Maw Crow",
+    "class": "rat",
+    "hp": 26,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["tempo", "control"],
+    "description": "A carrion thing that pecks in blurring arcs.",
+    "behaviorHint": "Frequent multi-hit pressure and occasional evasive block.",
+    "moves": [
+      {
+        "id": "wing_lunge",
+        "name": "Wing Lunge",
+        "intentIcon": "⚔",
+        "intentText": "Deal 4 damage 2 times.",
+        "damage": 4,
+        "hits": 2,
+        "weight": 4
+      },
+      {
+        "id": "ash_swerve",
+        "name": "Ash Swerve",
+        "intentIcon": "🛡",
+        "intentText": "Gain 6 Block.",
+        "block": 6,
+        "weight": 2,
+        "avoidRepeat": true
+      }
+    ]
+  },
+  "mud_saint_larva": {
+    "name": "Mud Saint Larva",
+    "class": "hound",
+    "hp": 40,
+    "tier": "normal",
+    "act": 1,
+    "archetypes": ["block", "ward"],
+    "description": "A blind larva wrapped in sanctified clay and weak miracles.",
+    "behaviorHint": "Slow, defensive turns with small self-heals.",
+    "moves": [
+      {
+        "id": "mire_shell",
+        "name": "Mire Shell",
+        "intentIcon": "🛡",
+        "intentText": "Gain 9 Block.",
+        "block": 9,
+        "weight": 4
+      },
+      {
+        "id": "supplicant_regrowth",
+        "name": "Supplicant Regrowth",
+        "intentIcon": "✚",
+        "intentText": "Heal 6.",
+        "heal": 6,
+        "weight": 2,
+        "cooldown": 2
+      },
+      {
+        "id": "mud_snap",
+        "name": "Mud Snap",
+        "intentIcon": "⚔",
+        "intentText": "Deal 7 damage.",
+        "damage": 7,
+        "weight": 3
+      }
+    ]
+  },
+  "grave_knight_remnant": {
+    "name": "Grave-Knight Remnant",
+    "class": "knight",
+    "hp": 96,
+    "tier": "elite",
+    "act": 1,
+    "archetypes": ["block", "strength"],
+    "description": "A bell-bound knight whose vows harden into iron.",
+    "behaviorHint": "Gets stronger whenever it finishes a turn with Block.",
+    "specialRules": ["gainStrengthIfBlocked"],
+    "moves": [
+      {
+        "id": "shield_sermon",
+        "name": "Shield Sermon",
+        "intentIcon": "🛡",
+        "intentText": "Gain 12 Block.",
+        "block": 12,
+        "weight": 4,
+        "avoidRepeat": true
+      },
+      {
+        "id": "rusted_verdict",
+        "name": "Rusted Verdict",
+        "intentIcon": "⚔",
+        "intentText": "Deal 14 damage.",
         "damage": 14,
-        "icon": "\u2694"
+        "weight": 3
       },
       {
-        "name": "Mute Prayer",
-        "type": "debuff",
+        "id": "oathbound_cleave",
+        "name": "Oathbound Cleave",
+        "intentIcon": "⚔",
+        "intentText": "Deal 8 damage 2 times.",
+        "damage": 8,
+        "hits": 2,
+        "weight": 2,
+        "cooldown": 1
+      }
+    ]
+  },
+  "bell_ringer_hollow": {
+    "name": "Bell-Ringer of the Hollow",
+    "class": "pilgrim",
+    "hp": 88,
+    "tier": "elite",
+    "act": 1,
+    "archetypes": ["curse", "tempo"],
+    "description": "Every toll from its rusted bell steals a beat from your breath.",
+    "behaviorHint": "Floods your piles with Dissonance and drains energy rhythm.",
+    "moves": [
+      {
+        "id": "tolling_bell",
+        "name": "Tolling Bell",
+        "intentIcon": "☠",
+        "intentText": "Add temporary Dissonance to discard.",
+        "addTemporaryCardToDiscard": "dissonance",
+        "weight": 3
+      },
+      {
+        "id": "broken_rhythm",
+        "name": "Broken Rhythm",
+        "intentIcon": "⚡",
+        "intentText": "Deal 8 damage and drain 1 energy next turn.",
+        "damage": 8,
+        "drainEnergyNextTurn": 1,
+        "weight": 3,
+        "cooldown": 1
+      },
+      {
+        "id": "funeral_ring",
+        "name": "Funeral Ring",
+        "intentIcon": "⚔",
+        "intentText": "Deal 5 damage 3 times.",
+        "damage": 5,
+        "hits": 3,
+        "weight": 2
+      }
+    ]
+  },
+  "bloodglass_hound": {
+    "name": "Bloodglass Hound",
+    "class": "hound",
+    "hp": 92,
+    "tier": "elite",
+    "act": 1,
+    "archetypes": ["bleed", "control"],
+    "description": "A predatory relic-beast that smells fresh blood through ash storms.",
+    "behaviorHint": "Applies Bleed and spikes damage once you are marked.",
+    "moves": [
+      {
+        "id": "glass_bite",
+        "name": "Glass Bite",
+        "intentIcon": "🩸",
+        "intentText": "Deal 9 damage and apply Bleed 2.",
+        "damage": 9,
         "applyPlayer": {
-          "Weak": 2
+          "Bleed": 2
         },
-        "icon": "\ud83e\udde0"
+        "weight": 4
       },
       {
-        "name": "Great Toll",
-        "type": "attack",
-        "damage": 26,
-        "icon": "\ud83d\udd14"
+        "id": "scent_of_red",
+        "name": "Scent of Red",
+        "intentIcon": "🧠",
+        "intentText": "Apply Weak 1 and Bleed 1.",
+        "applyPlayer": {
+          "Weak": 1,
+          "Bleed": 1
+        },
+        "weight": 2,
+        "avoidRepeat": true
+      },
+      {
+        "id": "open_wound",
+        "name": "Open Wound",
+        "intentIcon": "⚔",
+        "intentText": "Deal 10 damage. +6 if player is Bleeding.",
+        "damage": 10,
+        "special": {
+          "id": "bonusIfPlayerStatus",
+          "status": "Bleed",
+          "bonusDamage": 6
+        },
+        "weight": 3
+      }
+    ]
+  },
+  "the_gate_that_watches": {
+    "name": "The Gate That Watches",
+    "class": "mother",
+    "hp": 250,
+    "tier": "boss",
+    "act": 1,
+    "archetypes": ["control", "curse", "strength"],
+    "description": "A living gate whose iris opens only for the worthy and the doomed.",
+    "behaviorHint": "Phase boss: shifts at 65% and 35% HP thresholds.",
+    "phaseName": "Closed Eye",
+    "moves": [
+      {
+        "id": "gate_glare",
+        "name": "Gate Glare",
+        "intentIcon": "⚔",
+        "intentText": "Deal 10 damage.",
+        "damage": 10,
+        "weight": 4
+      },
+      {
+        "id": "sealing_dust",
+        "name": "Sealing Dust",
+        "intentIcon": "🧠",
+        "intentText": "Apply Weak 1.",
+        "applyPlayer": {
+          "Weak": 1
+        },
+        "weight": 2
+      },
+      {
+        "id": "stone_lid",
+        "name": "Stone Lid",
+        "intentIcon": "🛡",
+        "intentText": "Gain 14 Block.",
+        "block": 14,
+        "weight": 2
+      }
+    ],
+    "phases": [
+      {
+        "threshold": 0.65,
+        "name": "Eye Opens",
+        "onEnter": {
+          "applyPlayer": {
+            "Weak": 1
+          },
+          "applyEnemy": {
+            "Strength": 2
+          }
+        },
+        "moves": [
+          {
+            "id": "watching_lash",
+            "name": "Watching Lash",
+            "intentIcon": "⚔",
+            "intentText": "Deal 7 damage 2 times.",
+            "damage": 7,
+            "hits": 2,
+            "weight": 4
+          },
+          {
+            "id": "memory_tax",
+            "name": "Memory Tax",
+            "intentIcon": "☠",
+            "intentText": "Add temporary Dissonance to discard and draw.",
+            "addTemporaryCardToDiscard": "dissonance",
+            "addCardToPlayerDeck": "dissonance",
+            "weight": 2
+          },
+          {
+            "id": "lockstep",
+            "name": "Lockstep",
+            "intentIcon": "⚡",
+            "intentText": "Drain 1 energy next turn.",
+            "drainEnergyNextTurn": 1,
+            "weight": 2,
+            "avoidRepeat": true
+          }
+        ]
+      },
+      {
+        "threshold": 0.35,
+        "name": "Ash Crown",
+        "onEnter": {
+          "applyEnemy": {
+            "Strength": 3
+          },
+          "special": {
+            "id": "burnPunish",
+            "playerBurn": 2,
+            "enemyBurnIfPlayerAlreadyBurning": 2
+          }
+        },
+        "moves": [
+          {
+            "id": "crown_crush",
+            "name": "Crown Crush",
+            "intentIcon": "⚔",
+            "intentText": "Deal 18 damage.",
+            "damage": 18,
+            "weight": 3
+          },
+          {
+            "id": "ash_pulse",
+            "name": "Ash Pulse",
+            "intentIcon": "🔥",
+            "intentText": "Deal 6 damage 3 times.",
+            "damage": 6,
+            "hits": 3,
+            "weight": 3
+          },
+          {
+            "id": "final_witness",
+            "name": "Final Witness",
+            "intentIcon": "🧠",
+            "intentText": "Apply Weak 1 and Frail 1, then deal 8 damage.",
+            "damage": 8,
+            "applyPlayer": {
+              "Weak": 1,
+              "Frail": 1
+            },
+            "weight": 2
+          }
+        ]
       }
     ]
   }
