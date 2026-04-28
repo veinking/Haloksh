@@ -9,6 +9,7 @@ const cards = load("cards.json");
 const relics = load("relics.json");
 const weapons = load("weapons.json");
 const enemies = load("enemies.json");
+const events = load("events.json");
 
 let errors = [];
 const validCardRarity = new Set(["common", "uncommon", "rare"]);
@@ -112,6 +113,39 @@ for (const [rid, r] of Object.entries(relics)) {
   if (r.curses) for (const cid of r.curses) if (!cards[cid]) errors.push(`Relic ${rid} references missing curse ${cid}`);
 }
 
+
+const validEventEffectKeys = new Set([
+  "gainGold","loseGold","gainHP","loseHP","maxHP","gainRelic","gainRandomRelic","gainCard","gainRandomCard",
+  "upgradeRandomCard","upgradeChosenCard","removeCard","transformCard","duplicateCard","addCurse","addTemporaryCurse",
+  "gainWard","startCombat","gainStatus","loseStatus","setFlag","requireFlag","gainKeyItem","revealNextNodes","scoutElite",
+  "gainMapVision","gainStatusSelf"
+]);
+
+const eventIds = new Set();
+for (const event of Array.isArray(events) ? events : []) {
+  if (!event.id) errors.push("Event missing id");
+  if (event.id) {
+    if (eventIds.has(event.id)) errors.push(`Duplicate event id ${event.id}`);
+    eventIds.add(event.id);
+  }
+  if (!event.title || !event.description) errors.push(`Event ${event.id || "unknown"} missing title/description`);
+  if (event.act !== undefined && (!Number.isInteger(event.act) || event.act < 1)) errors.push(`Event ${event.id} has invalid act`);
+  if (event.weight !== undefined && (!(typeof event.weight === "number") || event.weight <= 0)) errors.push(`Event ${event.id} has invalid weight`);
+  if (event.rarity !== undefined && !["common","uncommon","rare"].includes(event.rarity)) errors.push(`Event ${event.id} has invalid rarity ${event.rarity}`);
+  if (!Array.isArray(event.choices) || !event.choices.length) errors.push(`Event ${event.id} must include choices`);
+  for (const choice of event.choices || []) {
+    if (!choice.text) errors.push(`Event ${event.id} has choice missing text`);
+    if (choice.effects !== undefined && (typeof choice.effects !== "object" || Array.isArray(choice.effects))) errors.push(`Event ${event.id} choice ${choice.text || "?"} has invalid effects object`);
+    for (const key of Object.keys(choice.effects || {})) {
+      if (!validEventEffectKeys.has(key)) {
+        errors.push(`Event ${event.id} choice ${choice.text || "?"} has unknown effect ${key}`);
+      }
+    }
+    const loseGold = choice.effects?.loseGold;
+    if (loseGold !== undefined && (!(typeof loseGold === "number") || loseGold < 0)) errors.push(`Event ${event.id} choice ${choice.text || "?"} has invalid loseGold`);
+    if (choice.requirements?.minGold !== undefined && choice.requirements.minGold < 0) errors.push(`Event ${event.id} choice ${choice.text || "?"} has impossible minGold`);
+  }
+}
 if (errors.length) {
   console.error("Validation failed:");
   errors.forEach(e => console.error(" - " + e));

@@ -125,3 +125,22 @@ button:disabled{opacity:.38}button:active{transform:scale(.97)}
   .map-screen .controls{min-height:62px}
 }
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+.echoes-pill{border-color:#b2905c;color:#f4d9a1}
+.event-screen,.shop-screen,.rest-screen{overflow:auto}
+.event-wrap,.shop-wrap,.rest-wrap{padding:12px;display:flex;flex-direction:column;gap:10px;overflow:auto}
+.event-card{border:1px solid var(--line);border-radius:12px;background:linear-gradient(#18120d,#0b0806);padding:12px;line-height:1.4}
+.event-choices{display:grid;gap:10px}
+.event-choice{text-align:left;padding:12px;min-height:74px}
+.disabled-choice{opacity:.45;filter:grayscale(.5)}
+.shop-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.shop-item{border:1px solid var(--line);border-radius:12px;padding:10px;background:#120d09;display:flex;flex-direction:column;gap:7px}
+.price-tag{color:var(--gold);font-weight:700}
+.sold-out{opacity:.5}
+.shop-services,.rest-actions{display:grid;gap:8px}
+.deck-picker{display:grid;gap:8px;max-height:62dvh;overflow:auto}
+.deck-picker-btn{text-align:left;padding:8px}
+.rest-wrap{border:1px solid var(--line);border-radius:14px;background:linear-gradient(#122019,#090f0c)}
+@media (max-width:720px){
+  .event-choice,.shop-services button,.rest-actions button{min-height:52px}
+}

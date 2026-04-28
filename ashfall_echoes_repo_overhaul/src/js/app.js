@@ -177,7 +177,11 @@ function fresh(){
     mapEncounter:null,
     pendingNodeCompletion:null,
     map:null,
-    flags:{}
+    flags:{},
+    nextCombat:{ ward:0, strength:0, block:0, draw:0, energy:0 },
+    nextCombatStatus:{},
+    tempNextCombatCards:[],
+    eventMeta:{}
   };
   title();
 }
@@ -238,7 +242,7 @@ const NODE_RISK = {
   event:"Uncertain omen. Risk and reward shift with your choice.",
   rest:"Recover or refine at a sanctuary.",
   shop:"Spend echoes on power.",
-  treasure:"Reward: relic, gold, or a rare memory.",
+  treasure:"Reward: relic, Echoes, or a rare memory.",
   boss:"Act end. The watcher at the gate opens its eye."
 };
 const NODE_FLAVOR = {
@@ -292,6 +296,11 @@ function hydrateSave(){
   S.map.currentNodeId = S.map.currentNodeId || null;
   S.map.pathHistory = Array.isArray(S.map.pathHistory) ? S.map.pathHistory : [];
   S.flags = S.flags || {};
+  S.gold = Number.isFinite(S.gold) ? Math.max(0, Math.floor(S.gold)) : 0;
+  S.nextCombat = { ward:0, strength:0, block:0, draw:0, energy:0, ...(S.nextCombat || {}) };
+  S.nextCombatStatus = S.nextCombatStatus || {};
+  S.tempNextCombatCards = Array.isArray(S.tempNextCombatCards) ? S.tempNextCombatCards : [];
+  S.eventMeta = S.eventMeta || {};
   S.relics = (Array.isArray(S.relics) ? S.relics : []).filter((id)=>DB.relics[id]);
   normalizeDeckState();
   if(S.combat?.enemy){
@@ -392,6 +401,14 @@ function nodeClass(node){
   return ["map-node", `node-${node.type}`, reachable ? "reachable" : "locked", visited ? "visited" : "", current ? "current" : "", selected ? "selected" : ""].filter(Boolean).join(" ");
 }
 
+function mapVisionNote(){
+  const notes = [];
+  if(S.eventMeta?.revealNextNodes) notes.push('Nearby paths feel clearer.');
+  if(S.eventMeta?.scoutElite) notes.push('Elite omens are easier to identify.');
+  if(S.eventMeta?.gainMapVision) notes.push(`Map vision +${S.eventMeta.gainMapVision}.`);
+  return notes.length ? `<p class="small">${notes.join(' ')}</p>` : '';
+}
+
 function drawWorld(){
   S.combat = null;
   hydrateSave();
@@ -402,7 +419,7 @@ function drawWorld(){
   G.innerHTML = `<div class="screen map-screen">
     <div class="top">
       <div><div class="logo">ACT ${S.map.act || 1}: THE HOLLOW ROAD</div><div class="small">Choose connected routes through the ash.</div></div>
-      <div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill">${S.gold}g</span></div>
+      <div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill echoes-pill">Echoes ${S.gold}</span></div>
     </div>
     <div class="map-layout">
       <div class="map-scroll" id="mapScroll">
@@ -421,6 +438,7 @@ function drawWorld(){
           ${selectedReachable ? `<button onclick="enterSelectedNode()">Enter</button>` : `<div class="locked-msg">Locked: follow connected routes from your current position.</div>`}
         ` : `<h3>Choose a node</h3><p>Select a reachable route node to preview risk and reward.</p>`}
         <hr>
+        ${mapVisionNote()}
         <p class="small"><b>Path Taken:</b> ${pathTaken}</p>
       </div>
     </div>
@@ -493,7 +511,8 @@ function encounterPreviewForNode(node){
   if(node.type === "elite"){
     const names = pool.map((enemy)=>enemy.name).slice(0, 3).join(" · ");
     const arcs = [...new Set(pool.flatMap((enemy)=>enemy.archetypes || []))];
-    return `<p><b>Possible Elite:</b> ${names || "Unknown predator"}</p><p class="small">High risk encounter.</p>${renderArchetypeChips(arcs)}`;
+    const label = S.eventMeta?.scoutElite ? 'Scouted Elite' : 'Possible Elite';
+    return `<p><b>${label}:</b> ${names || "Unknown predator"}</p><p class="small">High risk encounter.</p>${renderArchetypeChips(arcs)}`;
   }
   if(node.type === "combat"){
     const arcs = [...new Set(pool.flatMap((enemy)=>enemy.archetypes || []))];
@@ -508,20 +527,20 @@ function enterSelectedNode(){
   S.mapEncounter = { nodeId:node.id, type:node.type };
   if(["combat","elite","boss"].includes(node.type)) return startCombat(pickEnemyForNode(node), node.id);
   if(node.type === "event"){
-    runEvent(pick(["grave","well","candle_girl"]));
-    return completeCurrentNode({ nodeId:node.id, text:"Omen answered." });
+    const event = pickEventForNode(node);
+    return showEvent(event?.id);
   }
   if(node.type === "rest"){
     return showRestSite(node.id);
   }
   if(node.type === "treasure"){
-    S.gold += 75;
+    gainGold(75);
     pendingVictoryRewards = { nodeId:node.id, source:"treasure", summary:`Claimed ${node.title}.`, showCardAfterRelic:true };
     toast("Treasure found: choose a relic.");
     return showRelicReward("treasure");
   }
   if(node.type === "shop"){
-    return mapShop(node.id);
+    return showShop(node);
   }
 }
 
@@ -533,7 +552,8 @@ function completeCurrentNode(result = {}){
   S.map.currentNodeId = node.id;
   if(!S.map.visited.includes(node.id)) S.map.visited.push(node.id);
   S.map.step = Math.max(S.map.step, node.step + 1);
-  S.map.pathHistory.push(`${node.title} (${mapTypeLabel(node.type)})`);
+  const routeLog = result.text ? `${node.title} (${mapTypeLabel(node.type)}): ${result.text}` : `${node.title} (${mapTypeLabel(node.type)})`;
+  S.map.pathHistory.push(routeLog);
   S.pendingNodeCompletion = null;
   S.mapEncounter = null;
   if(node.type === "boss"){
@@ -656,80 +676,228 @@ function showCodex(){
 function quest(){
   toast("Choose your path carefully. Boss waits at the final step.");
 }
+function gainGold(amount){
+  const value = Math.max(0, Math.floor(Number(amount) || 0));
+  if(!value) return 0;
+  S.gold = (Number(S.gold) || 0) + value;
+  if(S.combat?.log) S.combat.log.push(`You gained ${value} Echoes.`);
+  return value;
+}
+function spendGold(amount){
+  const value = Math.max(0, Math.floor(Number(amount) || 0));
+  if(!canAfford(value)) return false;
+  S.gold -= value;
+  return true;
+}
+function canAfford(amount){
+  return (Number(S.gold) || 0) >= Math.max(0, Math.floor(Number(amount) || 0));
+}
+function weightedPick(items, getWeight){
+  const total = items.reduce((sum, item)=>sum + Math.max(0, getWeight(item) || 0), 0);
+  if(!total) return pick(items);
+  let roll = Math.random() * total;
+  for(const item of items){
+    roll -= Math.max(0, getWeight(item) || 0);
+    if(roll <= 0) return item;
+  }
+  return items[0];
+}
+function pickEventForNode(node){
+  const act = node?.act || S.map?.act || 1;
+  const events = (DB.events || []).filter((event)=>(event.act || act) === act);
+  if(!events.length) return { id:'fallback_event', title:'Fading Omen', description:'Nothing answers.', choices:[{text:'Continue', effects:{}, resultText:'The road remains.'}] };
+  return weightedPick(events, (event)=>event.weight || 1);
+}
+function showEvent(eventId){
+  const event = (DB.events || []).find((entry)=>entry.id === eventId);
+  if(!event){ toast('The omen fades.'); completeEvent({ text:'Event lost.' }); drawWorld(); return; }
+  S.activeEvent = { id:event.id, nodeId:S.mapEncounter?.nodeId || S.selectedNodeId };
+  G.innerHTML = `<div class="screen event-screen"><div class="top"><div><div class="logo">${event.title}</div><div class="small">${event.tags?.join(' · ') || 'Omen'}</div></div><div><span class="pill echoes-pill">Echoes ${S.gold}</span><span class="pill">HP ${S.hp}/${S.maxHp}</span></div></div><div class="event-wrap"><div class="event-card"><p>${event.description}</p></div><div class="event-choices">${(event.choices || []).map((choice, idx)=>renderEventChoice(choice, idx)).join('')}</div><button onclick="completeEvent({ text:'You leave the omen unanswered.' })">Leave</button></div></div>`;
+}
+function requirementReason(requirements = {}){
+  if(requirements.minGold && !canAfford(requirements.minGold)) return `Need ${requirements.minGold} Echoes`;
+  if(requirements.minDeck && S.deck.length < requirements.minDeck) return `Need at least ${requirements.minDeck} cards`;
+  if(requirements.minUpgradeable){
+    const count = S.deck.filter((card)=>{ const base = getCardDef(card); return base?.upgrade && !isCardUpgraded(card); }).length;
+    if(count < requirements.minUpgradeable) return 'No upgradable cards';
+  }
+  if(requirements.requireFlag && !S.flags?.[requirements.requireFlag]) return `Requires flag: ${requirements.requireFlag}`;
+  return '';
+}
+function canTakeEventChoice(choice){
+  const why = requirementReason(choice.requirements || {});
+  return { ok: !why, why };
+}
+function renderEventChoice(choice, idx){
+  const gate = canTakeEventChoice(choice);
+  return `<button class="event-choice ${gate.ok ? '' : 'disabled-choice'}" ${gate.ok ? `onclick="applyEventChoice(${idx})"` : 'disabled'}><b>${choice.text || 'Unknown choice'}</b><div class="small">${choice.description || ''}</div>${gate.ok ? '' : `<div class="small">${gate.why}</div>`}</button>`;
+}
+function pickRandomCard(options = {}){
+  const entries = Object.entries(DB.cards || {}).filter(([, card])=>card.type !== 'Curse');
+  const filtered = options.rarity ? entries.filter(([, card])=>card.rarity === options.rarity) : entries;
+  return pick((filtered.length ? filtered : entries).map(([id])=>id));
+}
+function applyEventChoice(choiceIndex){
+  const event = (DB.events || []).find((entry)=>entry.id === S.activeEvent?.id);
+  const choice = event?.choices?.[choiceIndex];
+  if(!choice) return;
+  const gate = canTakeEventChoice(choice);
+  if(!gate.ok) return toast(gate.why);
+  const effects = choice.effects || {};
+  let delayedCombat = false;
+  if(effects.loseGold) spendGold(effects.loseGold);
+  if(effects.gainGold) gainGold(effects.gainGold);
+  if(effects.loseHP) S.hp = Math.max(1, S.hp - Math.floor(effects.loseHP));
+  if(effects.gainHP){
+    const amount = typeof effects.gainHP === 'string' && effects.gainHP.includes('%') ? Math.floor(S.maxHp * (parseInt(effects.gainHP, 10) / 100)) : Math.floor(effects.gainHP);
+    S.hp = Math.min(S.maxHp, S.hp + Math.max(0, amount));
+  }
+  if(effects.maxHP) S.maxHp = Math.max(1, S.maxHp + Math.floor(effects.maxHP));
+  if(effects.gainRelic && DB.relics[effects.gainRelic]) S.relics.push(effects.gainRelic);
+  if(effects.gainRandomRelic){ const relic = pickRelicCandidates(1)[0]; if(relic) S.relics.push(relic); }
+  if(effects.gainCard && DB.cards[effects.gainCard]) addCardToDeck(effects.gainCard);
+  if(effects.gainRandomCard){
+    const options = typeof effects.gainRandomCard === 'object' ? effects.gainRandomCard : {};
+    const id = pickRandomCard(options);
+    if(id) addCardToDeck(id, { upgraded: Boolean(options.upgraded) });
+  }
+  if(effects.addCurse && DB.cards[effects.addCurse]) addCardToDeck(effects.addCurse);
+  if(effects.addTemporaryCurse && DB.cards[effects.addTemporaryCurse]) S.tempNextCombatCards.push(effects.addTemporaryCurse);
+  if(effects.gainWard) S.nextCombat.ward = (S.nextCombat.ward || 0) + Number(effects.gainWard || 0);
+  if(effects.gainStatus?.nextCombatBuff) Object.entries(effects.gainStatus.nextCombatBuff).forEach(([k,v])=>S.nextCombat[k] = (S.nextCombat[k] || 0) + Number(v || 0));
+  if(effects.gainStatus?.nextCombat) Object.entries(effects.gainStatus.nextCombat).forEach(([k,v])=>S.nextCombatStatus[k] = (S.nextCombatStatus[k] || 0) + Number(v || 0));
+  if(effects.gainStatusSelf?.Bleed) S.hp = Math.max(1, S.hp - Number(effects.gainStatusSelf.Bleed));
+  if(effects.setFlag) S.flags[effects.setFlag] = true;
+  if(effects.removeCard) return showDeckPicker('Remove a card', (index)=>{ removeCardFromDeck(index); finishEventChoice(choice, effects); });
+  if(effects.transformCard) return showDeckPicker('Transform a card', (index)=>{ const next = pickRandomCard({}); transformCardInDeck(index, next); finishEventChoice(choice, effects); });
+  if(effects.upgradeChosenCard) return showDeckPicker('Upgrade a card', (index)=>{ S.deck.splice(index, 1, upgradeCardInstance(S.deck[index])); finishEventChoice(choice, effects); }, { onlyUpgradeable:true });
+  if(effects.upgradeRandomCard){
+    const up = S.deck.map((c,i)=>({c,i})).filter(({c})=>{const base=getCardDef(c); return base?.upgrade && !isCardUpgraded(c);});
+    if(up.length){ const pickUp = pick(up); S.deck.splice(pickUp.i, 1, upgradeCardInstance(S.deck[pickUp.i])); }
+  }
+  if(effects.duplicateCard){
+    if(typeof effects.duplicateCard === 'string' && DB.cards[effects.duplicateCard]) addCardToDeck(effects.duplicateCard);
+    else if(S.deck.length) duplicateCardInDeck(Math.floor(Math.random()*S.deck.length));
+  }
+  finishEventChoice(choice, effects);
+}
+function finishEventChoice(choice, effects){
+  if(effects.revealNextNodes) S.eventMeta.revealNextNodes = true;
+  if(effects.scoutElite) S.eventMeta.scoutElite = true;
+  if(effects.gainMapVision) S.eventMeta.gainMapVision = (S.eventMeta.gainMapVision || 0) + Number(effects.gainMapVision || 0);
+  const result = choice.resultText || 'The omen passes.';
+  if(effects.startCombat){
+    S.eventPendingRewards = effects;
+    completeEvent({ text: result, startCombat:true });
+    return;
+  }
+  completeEvent({ text: result });
+}
+function completeEvent(result){
+  const nodeId = S.activeEvent?.nodeId || S.mapEncounter?.nodeId || S.selectedNodeId;
+  const text = result?.text || 'Event resolved.';
+  if(result?.startCombat){
+    toast(text);
+    const enemyId = pickEnemyForNode({ type:'combat' });
+    S.pendingEventResultText = text;
+    S.pendingNodeCompletion = nodeId;
+    S.activeEvent = null;
+    return startCombat(enemyId, nodeId);
+  }
+  S.activeEvent = null;
+  completeCurrentNode({ nodeId, text });
+  drawWorld();
+}
+function showDeckPicker(title, onPick, options = {}){
+  const cards = normalizeCardPile(S.deck).map((card, index)=>({ card, index })).filter(({ card })=>{
+    if(!options.onlyUpgradeable) return true;
+    const base = getCardDef(card);
+    return base?.upgrade && !isCardUpgraded(card);
+  });
+  const body = cards.map(({ card, index })=>`<button class="deck-picker-btn" onclick="window.__deckPick(${index})">${renderCardSummary(card)}</button>`).join('');
+  window.__deckPick = (index)=>{ document.querySelector('.modal')?.remove(); onPick(index); drawWorld(); };
+  modal(title, `<div class="deck-picker">${body || '<p>No valid cards.</p>'}</div>`);
+}
+function generateShopInventory(){
+  const cards = generateCardRewardChoices('combat').map((id)=>{
+    const rarity = DB.cards[id]?.rarity || 'common';
+    const priceByRarity = { common:45, uncommon:70, rare:110 };
+    return { id, price: priceByRarity[rarity] || 60, sold:false };
+  });
+  const relicIds = pickRelicCandidates(2);
+  const relics = relicIds.map((id)=>({ id, price: 140 + Math.floor(Math.random() * 81), sold:false }));
+  return { cards, relics, removalCost: 75 + ((S.shopRemovalCount || 0) * 25), healCost:50 };
+}
+function showShop(node){
+  const nodeId = typeof node === 'string' ? node : node.id;
+  const target = nodeById(nodeId);
+  if(!target.shopInventory) target.shopInventory = generateShopInventory();
+  S.currentShop = { nodeId };
+  const inv = target.shopInventory;
+  G.innerHTML = `<div class="screen shop-screen"><div class="top"><div><div class="logo">Veiled Merchant</div><div class="small">Everything costs Echoes.</div></div><div><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div><div class="shop-wrap"><div class="shop-grid">${inv.cards.map((entry, i)=>`<div class="shop-item ${entry.sold ? 'sold-out' : ''}"><b>${DB.cards[entry.id]?.name || entry.id}</b><div class="small">Card</div><div class="price-tag">${entry.price}</div><button ${entry.sold ? 'disabled' : `onclick="buyShopCard(${i})"`}>${entry.sold ? 'Sold' : 'Buy'}</button></div>`).join('')}${inv.relics.map((entry, i)=>`<div class="shop-item ${entry.sold ? 'sold-out' : ''}"><b>${DB.relics[entry.id]?.name || entry.id}</b><div class="small">Relic</div><div class="price-tag">${entry.price}</div><button ${entry.sold ? 'disabled' : `onclick="buyShopRelic(${i})"`}>${entry.sold ? 'Sold' : 'Buy'}</button></div>`).join('')}</div><div class="shop-services"><button onclick="buyCardRemoval()">Purge a card (${inv.removalCost})</button><button onclick="buyHeal()">Heal (50)</button><button onclick="leaveShop()">Leave Shop</button></div></div></div>`;
+}
+function activeShopNode(){ return nodeById(S.currentShop?.nodeId || S.mapEncounter?.nodeId || S.selectedNodeId); }
+function buyShopCard(index){
+  const node = activeShopNode(); const entry = node?.shopInventory?.cards?.[index];
+  if(!entry || entry.sold) return;
+  if(!spendGold(entry.price)) return toast('Not enough Echoes.');
+  addCardToDeck(entry.id); entry.sold = true;
+  showShop(node);
+}
+function buyShopRelic(index){
+  const node = activeShopNode(); const entry = node?.shopInventory?.relics?.[index];
+  if(!entry || entry.sold) return;
+  if(!spendGold(entry.price)) return toast('Not enough Echoes.');
+  S.relics.push(entry.id); entry.sold = true;
+  showShop(node);
+}
+function buyCardRemoval(){
+  const node = activeShopNode(); if(!node) return;
+  const cost = node.shopInventory.removalCost;
+  if(!spendGold(cost)) return toast('Not enough Echoes.');
+  node.shopInventory.removalCost += 25;
+  S.shopRemovalCount = (S.shopRemovalCount || 0) + 1;
+  showDeckPicker('Choose a card to purge', (index)=>{ const removed = removeCardFromDeck(index); toast(`Removed ${getCardInstanceDef(removed)?.name || 'card'}.`); showShop(node); });
+}
+function buyHeal(){
+  const node = activeShopNode(); if(!node) return;
+  if(!spendGold(node.shopInventory.healCost)) return toast('Not enough Echoes.');
+  const heal = Math.max(15, Math.floor(S.maxHp * 0.25));
+  S.hp = Math.min(S.maxHp, S.hp + heal);
+  toast(`Recovered ${heal} HP.`);
+  showShop(node);
+}
+function leaveShop(){
+  const nodeId = S.currentShop?.nodeId || S.mapEncounter?.nodeId || S.selectedNodeId;
+  S.currentShop = null;
+  completeCurrentNode({ nodeId, text:'You leave the merchant with lighter pockets.' });
+  drawWorld();
+}
 function restHealAmount(){
-  return Math.max(8, Math.floor(S.maxHp * 0.28));
+  return Math.max(10, Math.floor(S.maxHp * 0.3));
 }
 function showRestSite(nodeId){
-  document.querySelector(".modal")?.remove();
-  modal("Quiet Lantern", `<p>Current HP: <b>${S.hp}/${S.maxHp}</b></p><p>Recover body or sharpen one memory.</p>
-    <button onclick="restAtSite('${nodeId}')">Rest (+${restHealAmount()} HP)</button>
-    <button onclick="showRestUpgradePicker('${nodeId}')">Upgrade Card</button>
-    <button onclick="showDeck()">View Deck</button>`);
+  const purgeCost = 60 + ((S.restPurgeCount || 0) * 20);
+  G.innerHTML = `<div class="screen rest-screen"><div class="top"><div><div class="logo">Quiet Lantern</div><div class="small">A sanctuary between bells.</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div><div class="rest-wrap"><p>Choose one rite.</p><div class="rest-actions"><button onclick="restAtSite('${nodeId}')">Rest (+${restHealAmount()} HP)</button><button onclick="showRestUpgradePicker('${nodeId}')">Upgrade</button><button onclick="restPurge('${nodeId}', ${purgeCost})">Purge (${purgeCost})</button><button onclick="restMeditate('${nodeId}')">Meditate (+1 Ward next combat)</button></div></div></div>`;
 }
 function restAtSite(nodeId){
   S.hp = Math.min(S.maxHp, S.hp + restHealAmount());
-  document.querySelector(".modal")?.remove();
-  completeCurrentNode({ nodeId, text:"Rested at sanctuary." });
+  completeCurrentNode({ nodeId, text:'You rested at the Quiet Lantern.' });
   drawWorld();
 }
 function showRestUpgradePicker(nodeId){
-  document.querySelector(".modal")?.remove();
-  const choices = normalizeCardPile(S.deck).map((card, index)=>{
-    const base = getCardDef(card);
-    const def = getCardInstanceDef(card);
-    const canUpgrade = Boolean(base?.upgrade) && !isCardUpgraded(card);
-    return `<button ${canUpgrade ? `onclick=\"upgradeDeckCardAtRest(${index}, '${nodeId}')\"` : "disabled"}><b>${def?.name || card.id}</b><br><span class="small">${def?.text || ""}</span><br><span class="small">${canUpgrade ? "Upgradable" : "Already upgraded or no upgrade"}</span></button>`;
-  }).join("");
-  modal("Refine Memory", `<p>Select one card to upgrade.</p><div class="reward-grid">${choices || "<p>No cards available.</p>"}</div>`);
+  showDeckPicker('Upgrade one card', (index)=>{ S.deck.splice(index, 1, upgradeCardInstance(S.deck[index])); completeCurrentNode({ nodeId, text:'You refined a memory at the sanctuary.' }); drawWorld(); }, { onlyUpgradeable:true });
 }
-function upgradeDeckCardAtRest(index, nodeId){
-  const upgraded = upgradeCardInstance(S.deck[index]);
-  S.deck.splice(index, 1, upgraded);
-  document.querySelector(".modal")?.remove();
-  toast(`${getCardInstanceDef(upgraded)?.name || "Card"} refined.`);
-  completeCurrentNode({ nodeId, text:"Refined at sanctuary." });
+function restPurge(nodeId, cost){
+  if(!spendGold(cost)) return toast('Not enough Echoes.');
+  S.restPurgeCount = (S.restPurgeCount || 0) + 1;
+  showDeckPicker('Purge one card', (index)=>{ removeCardFromDeck(index); completeCurrentNode({ nodeId, text:'You offered a memory to the ash.' }); drawWorld(); });
+}
+function restMeditate(nodeId){
+  S.nextCombat.ward = (S.nextCombat.ward || 0) + 1;
+  S.nextCombat.draw = (S.nextCombat.draw || 0) + 1;
+  completeCurrentNode({ nodeId, text:'You meditated beneath dead lanterns.' });
   drawWorld();
-}
-function runEvent(eventId){
-  if(eventId === "grave"){
-    modal("Grave of Yourself", `<p>The ash remembers your name.</p><button onclick="S.gold+=35;document.querySelector('.modal').remove();drawWorld();">Take Gold</button>`);
-    return;
-  }
-  if(eventId === "well"){
-    modal("The Weeping Well", `<p>The water reflects a face you almost remember.</p><button onclick="S.hp=Math.min(S.maxHp,S.hp+18);document.querySelector('.modal').remove();drawWorld();toast('You drink. +18 HP.')">Drink</button>`);
-    return;
-  }
-  if(eventId === "candle_girl"){
-    modal("The Candle Girl", `<p>A faceless child offers flame and asks for blood.</p><button onclick="S.hp=Math.max(1,S.hp-6);addCardToDeck('blood_pact');document.querySelector('.modal').remove();drawWorld();">Accept Bargain</button>`);
-    return;
-  }
-  const ev = (DB.events || []).find((e)=>e.id===eventId);
-  return cutscene(ev?.title || "Strange Memory", ev?.desc || "The Hollow shifts around you.", drawWorld);
-}
-function shop(){
-  return mapShop(S.mapEncounter?.nodeId);
-}
-function mapShop(nodeId){
-  const opts = ["heavy_cut","blood_pact","hollow_bind","counter_bell","twin_strike","serrated_cut","lantern_step"];
-  modal("Veiled Merchant", `<p>"Buy now. Regret later."</p><p>Gold: ${S.gold}</p>
-    <div class="reward-grid">${opts.map(id=>`<button onclick="buyCard('${id}',60)"><b>${DB.cards[id].name}</b> — 60g</button>`).join("")}</div>
-    <button onclick="removeBasic()">Remove Strike/Guard — 75g</button>
-    <button onclick="document.querySelector('.modal').remove();completeCurrentNode({nodeId:'${nodeId}',text:'Left the merchant.'});drawWorld();">Leave Shop</button>`);
-}
-function buyCard(id,cost){ if(S.gold<cost) return toast("Not enough gold."); S.gold-=cost; addCardToDeck(id); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
-function removeBasic(){
-  if(S.gold<75) return toast("Not enough gold.");
-  const i = S.deck.findIndex((card)=>["strike","guard"].includes(cardIdOf(card)));
-  if(i>=0){ S.gold-=75; removeCardFromDeck(i); toast("A basic memory is removed."); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
-  else toast("No Strike/Guard found.");
-}
-function camp(){
-  showRestSite(S.mapEncounter?.nodeId || S.selectedNodeId);
-}
-function upgradeAtCamp(){
-  const i = S.deck.findIndex((card)=>["strike","guard"].includes(cardIdOf(card)) && !isCardUpgraded(card));
-  if(i>=0){ const upgraded = upgradeCardInstance(S.deck[i]); S.deck.splice(i,1, upgraded); document.querySelector(".modal")?.remove(); toast("You refine your deck."); drawWorld(); }
-  else toast("Nothing basic to refine.");
 }
 function triggerRelics(hook, payload = {}){
   if(!RELIC_HOOKS.has(hook) || !Array.isArray(S?.relics)) return;
@@ -878,9 +1046,37 @@ function startCombat(enemyId, nodeId = null){
   };
   S.combat.enemyState.currentMoveId = chooseEnemyMove();
   triggerRelics("combatStart", { enemy:e });
-  drawCards(5);
+  applyNextCombatBuffs();
+  drawCards(5 + (S.combat.drawBonusNextTurn || 0));
+  S.combat.drawBonusNextTurn = 0;
   combatUI();
 }
+function applyNextCombatBuffs(){
+  const buffs = S.nextCombat || {};
+  const statuses = S.nextCombatStatus || {};
+  const tempCards = Array.isArray(S.tempNextCombatCards) ? [...S.tempNextCombatCards] : [];
+  if(!S.combat) return;
+  if(buffs.ward) S.combat.ward = (S.combat.ward || 0) + buffs.ward;
+  if(buffs.strength) S.combat.str = (S.combat.str || 0) + buffs.strength;
+  if(buffs.block) S.combat.block = (S.combat.block || 0) + buffs.block;
+  if(buffs.energy) S.combat.energy += buffs.energy;
+  if(buffs.draw) S.combat.drawBonusNextTurn = (S.combat.drawBonusNextTurn || 0) + buffs.draw;
+  Object.entries(statuses).forEach(([key, value])=>{ S.combat[key.toLowerCase()] = (S.combat[key.toLowerCase()] || 0) + Number(value || 0); });
+  tempCards.forEach((cardId)=>{ if(DB.cards[cardId]) S.combat.discard.push(createCardInstance(cardId, { temporary:true })); });
+  const summary = [];
+  if(buffs.ward) summary.push(`Ward ${buffs.ward}`);
+  if(buffs.strength) summary.push(`Strength ${buffs.strength}`);
+  if(buffs.block) summary.push(`Block ${buffs.block}`);
+  if(buffs.draw) summary.push(`Draw +${buffs.draw}`);
+  if(buffs.energy) summary.push(`Energy +${buffs.energy}`);
+  if(Object.keys(statuses).length) summary.push(`Statuses ${Object.keys(statuses).join(', ')}`);
+  if(tempCards.length) summary.push(`Temporary curse ${tempCards.length}`);
+  if(summary.length) S.combat.log.push(`Next-combat buffs applied: ${summary.join(' · ')}`);
+  S.nextCombat = { ward:0, strength:0, block:0, draw:0, energy:0 };
+  S.nextCombatStatus = {};
+  S.tempNextCombatCards = [];
+}
+
 function drawCards(n){
   const C = S.combat;
   for(let i=0;i<n;i++){
@@ -1339,7 +1535,7 @@ function victory(){
   const E = S.combat.enemy, boss = E.tier === "boss";
   const elite = E.tier === "elite";
   const completionNode = S.pendingNodeCompletion;
-  S.kills++; S.gold += elite ? 65 : boss ? 100 : 30;
+  S.kills++; gainGold(elite ? 65 : boss ? 100 : 30);
   S.combat = null;
   if(completionNode){
     const source = boss ? "boss" : elite ? "elite" : "combat";
@@ -1439,7 +1635,7 @@ function showCardReward(source = "combat", options = {}){
   pendingVictoryRewards = { ...(pendingVictoryRewards || {}), source, nodeId: options.nodeId || pendingVictoryRewards?.nodeId, summary: options.summary || "Won battle." };
   const sourceLabel = source.charAt(0).toUpperCase() + source.slice(1);
   const build = getBuildSummary();
-  G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${sourceLabel} Reward</div><div class="small">${pick(REWARD_FLAVOR)}</div></div><div><span class="pill">Deck ${S.deck.length}</span><span class="pill">${S.gold}g</span></div></div>
+  G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${sourceLabel} Reward</div><div class="small">${pick(REWARD_FLAVOR)}</div></div><div><span class="pill">Deck ${S.deck.length}</span><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div>
     <div class="reward-wrap"><p class="small">${pendingVictoryRewards.summary} Choose one memory or pass.</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p><div class="reward-grid">${choices.map((id)=>`<button class="reward-choice" onclick="pickRewardCard('${id}')">${renderCardSummary(createCardInstance(id))}</button>`).join("")}</div>
     <div class="reward-actions"><button onclick="showDeck()">View Deck</button><button onclick="showBuildPanel()">Build</button><button onclick="skipCardReward()">Skip</button></div></div></div>`;
 }
@@ -1472,4 +1668,14 @@ function showCombatLog(){
 }
 window.showPile = showPile;
 window.showCombatLog = showCombatLog;
+window.applyEventChoice = applyEventChoice;
+window.buyShopCard = buyShopCard;
+window.buyShopRelic = buyShopRelic;
+window.buyCardRemoval = buyCardRemoval;
+window.buyHeal = buyHeal;
+window.leaveShop = leaveShop;
+window.restAtSite = restAtSite;
+window.showRestUpgradePicker = showRestUpgradePicker;
+window.restPurge = restPurge;
+window.restMeditate = restMeditate;
 loadData();
