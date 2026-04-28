@@ -11,6 +11,7 @@ const weapons = load("weapons.json");
 const enemies = load("enemies.json");
 
 let errors = [];
+const validCardRarity = new Set(["common", "uncommon", "rare"]);
 
 for (const [wid, w] of Object.entries(weapons)) {
   if (!w.starter || !Array.isArray(w.starter)) errors.push(`Weapon ${wid} missing starter deck`);
@@ -21,6 +22,7 @@ for (const [wid, w] of Object.entries(weapons)) {
 
 for (const [cid, c] of Object.entries(cards)) {
   if (!c.name || !c.type || c.cost === undefined || !c.text) errors.push(`Card ${cid} missing required fields`);
+  if (!validCardRarity.has(c.rarity)) errors.push(`Card ${cid} has invalid rarity ${c.rarity}`);
   for (const refField of ["addDiscard"]) {
     if (c[refField] && !cards[c[refField]]) errors.push(`Card ${cid} references missing ${refField} card ${c[refField]}`);
   }

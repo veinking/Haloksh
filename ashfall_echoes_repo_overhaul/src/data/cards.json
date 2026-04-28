@@ -3,64 +3,89 @@
     "name": "Strike",
     "type": "Attack",
     "cost": 1,
-    "rarity": "Basic",
+    "rarity": "common",
     "tags": [
       "Blade"
     ],
     "text": "Deal 6 damage.",
-    "damage": 6
+    "damage": 6,
+    "upgradedName": "Strike+",
+    "upgradedText": "Deal 9 damage.",
+    "upgrade": {
+      "damage": 9
+    }
   },
   "guard": {
     "name": "Guard",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Basic",
+    "rarity": "common",
     "tags": [
       "Guard"
     ],
     "text": "Gain 5 Block.",
-    "block": 5
+    "block": 5,
+    "upgradedName": "Guard+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
   },
   "quick_slash": {
     "name": "Quick Slash",
     "type": "Attack",
     "cost": 1,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Blade"
     ],
     "text": "Deal 8 damage.",
-    "damage": 8
+    "damage": 8,
+    "upgradedName": "Quick Slash+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
   },
   "heavy_cut": {
     "name": "Heavy Cut",
     "type": "Attack",
     "cost": 2,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Blade"
     ],
     "text": "Deal 15 damage.",
-    "damage": 15
+    "damage": 15,
+    "upgradedName": "Heavy Cut+",
+    "upgradedText": "Deal 19 damage.",
+    "upgrade": {
+      "damage": 19
+    }
   },
   "twin_strike": {
     "name": "Twin Strike",
     "type": "Attack",
     "cost": 1,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Blade",
       "MultiHit"
     ],
     "text": "Deal 4 damage twice.",
     "damage": 4,
-    "hits": 2
+    "hits": 2,
+    "upgradedName": "Twin Strike+",
+    "upgradedText": "Deal 5 damage twice.",
+    "upgrade": {
+      "damage": 5
+    }
   },
   "serrated_cut": {
     "name": "Serrated Cut",
     "type": "Attack",
     "cost": 1,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Blade",
       "Bleed"
@@ -69,48 +94,71 @@
     "damage": 6,
     "apply": {
       "Bleed": 2
+    },
+    "upgradedName": "Serrated Cut+",
+    "upgradedText": "Deal 8 damage. Apply 3 Bleed.",
+    "upgrade": {
+      "damage": 8,
+      "apply": {
+        "Bleed": 3
+      }
     }
   },
   "grave_cleave": {
     "name": "Grave Cleave",
     "type": "Attack",
     "cost": 2,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Blade",
       "Bleed"
     ],
     "text": "Deal 13. If enemy has Bleed, gain 1 Energy.",
     "damage": 13,
-    "energyIfEnemyStatus": "Bleed"
+    "energyIfEnemyStatus": "Bleed",
+    "upgradedName": "Grave Cleave+",
+    "upgradedText": "Deal 16. If enemy has Bleed, gain 1 Energy.",
+    "upgrade": {
+      "damage": 16
+    }
   },
   "bone_splitter": {
     "name": "Bone Splitter",
     "type": "Attack",
     "cost": 3,
-    "rarity": "Rare",
+    "rarity": "rare",
     "tags": [
       "Blade"
     ],
     "text": "Deal 30 damage.",
-    "damage": 30
+    "damage": 30,
+    "upgradedName": "Bone Splitter+",
+    "upgradedText": "Deal 38 damage.",
+    "upgrade": {
+      "damage": 38
+    }
   },
   "brace": {
     "name": "Brace",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Guard"
     ],
     "text": "Gain 9 Block.",
-    "block": 9
+    "block": 9,
+    "upgradedName": "Brace+",
+    "upgradedText": "Gain 12 Block.",
+    "upgrade": {
+      "block": 12
+    }
   },
   "ashen_guard": {
     "name": "Ashen Guard",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Guard",
       "Curse"
@@ -123,20 +171,26 @@
     "name": "Counter Bell",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Guard",
       "Counter"
     ],
     "text": "Gain 6 Block. Reflect 6 next time hit this turn.",
     "block": 6,
-    "counter": 6
+    "counter": 6,
+    "upgradedName": "Counter Bell+",
+    "upgradedText": "Gain 8 Block. Reflect 8 next time hit this turn.",
+    "upgrade": {
+      "block": 8,
+      "counter": 8
+    }
   },
   "iron_prayer": {
     "name": "Iron Prayer",
     "type": "Skill",
     "cost": 2,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Guard"
     ],
@@ -147,55 +201,78 @@
     "name": "Fortify",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Guard"
     ],
     "text": "Gain 6 Fortify. Fortify carries over one turn.",
-    "fortify": 6
+    "fortify": 6,
+    "upgradedName": "Fortify+",
+    "upgradedText": "Gain 8 Fortify. Fortify carries over one turn.",
+    "upgrade": {
+      "fortify": 8
+    }
   },
   "open_vein": {
     "name": "Open Vein",
     "type": "Skill",
     "cost": 0,
-    "rarity": "Basic",
+    "rarity": "common",
     "tags": [
       "Blood"
     ],
     "text": "Lose 3 HP. Gain 1 Energy.",
     "selfDamage": 3,
-    "gainEnergy": 1
+    "gainEnergy": 1,
+    "upgradedName": "Open Vein+",
+    "upgradedText": "Lose 2 HP. Gain 2 Energy.",
+    "upgrade": {
+      "selfDamage": 2,
+      "gainEnergy": 2
+    }
   },
   "blood_pact": {
     "name": "Blood Pact",
     "type": "Skill",
     "cost": 0,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Blood"
     ],
     "text": "Lose 5 HP. Gain 2 Energy.",
     "selfDamage": 5,
-    "gainEnergy": 2
+    "gainEnergy": 2,
+    "upgradedName": "Blood Pact+",
+    "upgradedText": "Lose 4 HP. Gain 3 Energy.",
+    "upgrade": {
+      "selfDamage": 4,
+      "gainEnergy": 3
+    }
   },
   "red_carve": {
     "name": "Red Carve",
     "type": "Attack",
     "cost": 1,
-    "rarity": "Basic",
+    "rarity": "common",
     "tags": [
       "Blood",
       "Blade"
     ],
     "text": "Deal 9. If you lost HP this turn, deal +6.",
     "damage": 9,
-    "bonusIfSelfDamaged": 6
+    "bonusIfSelfDamaged": 6,
+    "upgradedName": "Red Carve+",
+    "upgradedText": "Deal 11. If you lost HP this turn, deal +8.",
+    "upgrade": {
+      "damage": 11,
+      "bonusIfSelfDamaged": 8
+    }
   },
   "pain_dividend": {
     "name": "Pain Dividend",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Blood",
       "Draw"
@@ -208,19 +285,25 @@
     "name": "Last Pulse",
     "type": "Attack",
     "cost": 2,
-    "rarity": "Rare",
+    "rarity": "rare",
     "tags": [
       "Blood"
     ],
     "text": "Deal 18. If below 50% HP, deal +12.",
     "damage": 18,
-    "bonusIfLowHp": 12
+    "bonusIfLowHp": 12,
+    "upgradedName": "Last Pulse+",
+    "upgradedText": "Deal 22. If below 50% HP, deal +14.",
+    "upgrade": {
+      "damage": 22,
+      "bonusIfLowHp": 14
+    }
   },
   "lantern_step": {
     "name": "Lantern Step",
     "type": "Skill",
     "cost": 0,
-    "rarity": "Common",
+    "rarity": "common",
     "tags": [
       "Lantern",
       "Draw"
@@ -228,25 +311,35 @@
     "text": "Gain 3 Block. Draw 1. Exhaust.",
     "block": 3,
     "draw": 1,
-    "exhaust": true
+    "exhaust": true,
+    "upgradedName": "Lantern Step+",
+    "upgradedText": "Gain 5 Block. Draw 1. Exhaust.",
+    "upgrade": {
+      "block": 5
+    }
   },
   "old_technique": {
     "name": "Old Technique",
     "type": "Skill",
     "cost": 0,
-    "rarity": "Basic",
+    "rarity": "common",
     "tags": [
       "Blade"
     ],
     "text": "Next Attack deals +5. Exhaust.",
     "nextAttackBonus": 5,
-    "exhaust": true
+    "exhaust": true,
+    "upgradedName": "Old Technique+",
+    "upgradedText": "Next Attack deals +8. Exhaust.",
+    "upgrade": {
+      "nextAttackBonus": 8
+    }
   },
   "lantern_light": {
     "name": "Lantern Light",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Lantern"
     ],
@@ -254,13 +347,18 @@
     "block": 5,
     "playerStatus": {
       "Strength": 1
+    },
+    "upgradedName": "Lantern Light+",
+    "upgradedText": "Gain 8 Block and 1 Strength.",
+    "upgrade": {
+      "block": 8
     }
   },
   "burn_the_past": {
     "name": "Burn the Past",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Lantern",
       "Exhaust",
@@ -268,13 +366,18 @@
     ],
     "text": "Exhaust a random card in hand. Draw 2.",
     "exhaustRandomHand": 1,
-    "draw": 2
+    "draw": 2,
+    "upgradedName": "Burn the Past+",
+    "upgradedText": "Exhaust a random card in hand. Draw 3.",
+    "upgrade": {
+      "draw": 3
+    }
   },
   "memory_wick": {
     "name": "Memory Wick",
     "type": "Power",
     "cost": 1,
-    "rarity": "Rare",
+    "rarity": "rare",
     "tags": [
       "Lantern",
       "Power"
@@ -286,7 +389,7 @@
     "name": "Hollow Bind",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Curse",
       "Control"
@@ -301,7 +404,7 @@
     "name": "Dissonant Hymn",
     "type": "Skill",
     "cost": 2,
-    "rarity": "Rare",
+    "rarity": "rare",
     "tags": [
       "Curse",
       "Control"
@@ -319,7 +422,7 @@
     "name": "Rot Bloom",
     "type": "Attack",
     "cost": 1,
-    "rarity": "Rare",
+    "rarity": "rare",
     "tags": [
       "Root",
       "Curse"
@@ -332,7 +435,7 @@
     "name": "Mercy Bloom",
     "type": "Skill",
     "cost": 1,
-    "rarity": "Uncommon",
+    "rarity": "uncommon",
     "tags": [
       "Root"
     ],
@@ -344,7 +447,7 @@
     "name": "Dissonance",
     "type": "Curse",
     "cost": 99,
-    "rarity": "Curse",
+    "rarity": "common",
     "tags": [
       "Curse"
     ],
@@ -356,7 +459,7 @@
     "name": "Rot",
     "type": "Curse",
     "cost": 99,
-    "rarity": "Curse",
+    "rarity": "common",
     "tags": [
       "Curse",
       "Root"
@@ -371,7 +474,7 @@
     "name": "Bell Slam",
     "type": "Attack",
     "cost": 2,
-    "rarity": "Basic",
+    "rarity": "common",
     "tags": [
       "Hammer"
     ],
@@ -379,6 +482,14 @@
     "damage": 18,
     "apply": {
       "Weak": 1
+    },
+    "upgradedName": "Bell Slam+",
+    "upgradedText": "Deal 22. Apply 2 Weak.",
+    "upgrade": {
+      "damage": 22,
+      "apply": {
+        "Weak": 2
+      }
     }
   }
 }

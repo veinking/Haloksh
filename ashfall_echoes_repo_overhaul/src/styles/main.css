@@ -80,6 +80,17 @@ button:disabled{opacity:.38}button:active{transform:scale(.97)}
 @keyframes embersFloat{from{opacity:.55;transform:translateY(2px)}to{opacity:.95;transform:translateY(-4px)}}
 @keyframes fogPulse{from{opacity:.45}to{opacity:.8}}
 .hand{height:214px;background:rgba(7,6,5,.99);border-top:1px solid var(--line);display:flex;gap:8px;overflow-x:auto;padding:10px;align-items:center;touch-action:pan-x}.card{flex:0 0 128px;height:186px;border:1px solid #795937;border-radius:12px;background:linear-gradient(#2a1e15,#0b0907);padding:8px;box-shadow:inset 0 0 13px #000,0 4px 12px #000;transition:.12s;touch-action:manipulation}.card.playable{box-shadow:0 0 12px rgba(214,179,109,.35),inset 0 0 13px #000;animation:cardPulse 1.6s ease-in-out infinite}.card:active,.card.activating{transform:translateY(-12px) scale(1.03);box-shadow:0 0 20px rgba(114,210,204,.4),inset 0 0 13px #000}.card.disabled{opacity:.5;filter:grayscale(.45) brightness(.85)}.cost{float:right;border:1px solid var(--line);border-radius:50%;width:24px;height:24px;text-align:center;line-height:22px;color:var(--cyan)}.card h4{margin:0;color:var(--gold);font-size:13px}.art{height:48px;border:1px solid #4b3825;margin:7px 0;background:radial-gradient(circle,rgba(178,52,42,.45),transparent 48%),#16100c}.type{font-size:10px;color:#c58b5e;text-transform:uppercase}.txt{font-size:12px;color:#e2d2b6;line-height:1.2}
+.card-common{border-color:#8b6a3f}
+.card-uncommon{border-color:#5e8f7b;box-shadow:0 0 10px rgba(114,210,204,.2),inset 0 0 13px #000}
+.card-rare{border-color:#b085df;box-shadow:0 0 12px rgba(160,114,230,.3),inset 0 0 13px #000}
+.card-upgraded h4{color:#72d2cc}
+.card-upgraded .type::after{content:" · upgraded";color:#72d2cc}
+.reward-screen .reward-wrap{padding:12px;overflow:auto}
+.reward-choice{padding:0;background:none;border:none}
+.reward-choice .card{width:100%;height:auto;min-height:180px}
+.reward-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.deck-list{display:grid;gap:8px}
+.deck-row{border:1px solid var(--line);border-radius:10px;padding:8px;background:#0d0a07}
 @keyframes cardPulse{0%,100%{box-shadow:0 0 10px rgba(214,179,109,.25),inset 0 0 13px #000}50%{box-shadow:0 0 16px rgba(214,179,109,.45),inset 0 0 13px #000}}
 .combat-actions{height:60px;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-top:1px solid var(--line);background:#080706}.energy{color:var(--cyan)}
 .combat-actions{height:auto;min-height:60px}
