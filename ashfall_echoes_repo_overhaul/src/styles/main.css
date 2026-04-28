@@ -97,6 +97,16 @@ button:disabled{opacity:.38}button:active{transform:scale(.97)}
 .status-row{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
 .status-row.empty{opacity:.65;font-size:11px}
 .status-chip{border:1px solid var(--line);border-radius:999px;padding:2px 8px;background:#120e0a;font-size:11px;color:var(--gold)}
+.archetype-row{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+.archetype-chip{border:1px solid var(--line);border-radius:999px;padding:1px 7px;font-size:10px;text-transform:uppercase;letter-spacing:.4px;background:#1a120c;color:#f2dcb0}
+.archetype-bleed{border-color:#9d2d2d}
+.archetype-block{border-color:#4a8b83}
+.archetype-curse{border-color:#7b629f}
+.archetype-tempo{border-color:#b48453}
+.archetype-burn{border-color:#bc4d2a}
+.archetype-ward{border-color:#6bbcc5}
+.archetype-strength{border-color:#9b7651}
+.archetype-control{border-color:#7086a8}
 .combat-log p{margin:0 0 6px}
 .modal{position:absolute;inset:0;z-index:50;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:14px}.modalbox{width:min(560px,100%);max-height:92dvh;overflow:auto;border:1px solid var(--line);background:#110d09;border-radius:16px;padding:18px;box-shadow:0 0 35px #000}.reward-grid{display:grid;grid-template-columns:1fr;gap:10px}
 .cutscene{position:absolute;inset:0;z-index:60;background:radial-gradient(circle at 50% 25%,rgba(154,42,35,.24),transparent 28%),linear-gradient(#181b1f,#040302 70%);display:flex;align-items:flex-end}.cutscene:before{content:"";position:absolute;inset:0;background:linear-gradient(transparent 0 45%,rgba(0,0,0,.65) 45%),repeating-linear-gradient(90deg,transparent 0 34px,rgba(0,0,0,.5) 34px 40px);clip-path:polygon(0 100%,0 55%,8% 51%,9% 33%,11% 52%,22% 49%,24% 24%,27% 51%,40% 48%,42% 18%,45% 50%,58% 52%,60% 28%,63% 50%,77% 47%,79% 21%,82% 50%,94% 53%,96% 31%,98% 53%,100% 55%,100% 100%)}.cutbox{position:relative;z-index:2;padding:22px;background:linear-gradient(transparent,rgba(0,0,0,.92) 25%);width:100%}.cutbox h2{font-size:30px}.log{font-size:12px;color:var(--muted);max-height:56px;overflow:hidden}

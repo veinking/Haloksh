@@ -13,7 +13,10 @@
     "upgradedText": "Deal 9 damage.",
     "upgrade": {
       "damage": 9
-    }
+    },
+    "archetypes": [
+      "strength"
+    ]
   },
   "guard": {
     "name": "Guard",
@@ -29,7 +32,10 @@
     "upgradedText": "Gain 8 Block.",
     "upgrade": {
       "block": 8
-    }
+    },
+    "archetypes": [
+      "block"
+    ]
   },
   "quick_slash": {
     "name": "Quick Slash",
@@ -45,7 +51,11 @@
     "upgradedText": "Deal 11 damage.",
     "upgrade": {
       "damage": 11
-    }
+    },
+    "archetypes": [
+      "tempo",
+      "strength"
+    ]
   },
   "heavy_cut": {
     "name": "Heavy Cut",
@@ -61,7 +71,10 @@
     "upgradedText": "Deal 19 damage.",
     "upgrade": {
       "damage": 19
-    }
+    },
+    "archetypes": [
+      "strength"
+    ]
   },
   "twin_strike": {
     "name": "Twin Strike",
@@ -79,7 +92,11 @@
     "upgradedText": "Deal 5 damage twice.",
     "upgrade": {
       "damage": 5
-    }
+    },
+    "archetypes": [
+      "tempo",
+      "strength"
+    ]
   },
   "serrated_cut": {
     "name": "Serrated Cut",
@@ -102,7 +119,10 @@
       "apply": {
         "Bleed": 3
       }
-    }
+    },
+    "archetypes": [
+      "bleed"
+    ]
   },
   "grave_cleave": {
     "name": "Grave Cleave",
@@ -120,7 +140,11 @@
     "upgradedText": "Deal 16. If enemy has Bleed, gain 1 Energy.",
     "upgrade": {
       "damage": 16
-    }
+    },
+    "archetypes": [
+      "bleed",
+      "tempo"
+    ]
   },
   "bone_splitter": {
     "name": "Bone Splitter",
@@ -136,7 +160,10 @@
     "upgradedText": "Deal 38 damage.",
     "upgrade": {
       "damage": 38
-    }
+    },
+    "archetypes": [
+      "strength"
+    ]
   },
   "brace": {
     "name": "Brace",
@@ -152,7 +179,10 @@
     "upgradedText": "Gain 12 Block.",
     "upgrade": {
       "block": 12
-    }
+    },
+    "archetypes": [
+      "block"
+    ]
   },
   "ashen_guard": {
     "name": "Ashen Guard",
@@ -165,7 +195,11 @@
     ],
     "text": "Gain 8 Block. If a Curse is in hand, gain +4.",
     "block": 8,
-    "bonusBlockIfCurse": 4
+    "bonusBlockIfCurse": 4,
+    "archetypes": [
+      "block",
+      "ward"
+    ]
   },
   "counter_bell": {
     "name": "Counter Bell",
@@ -184,7 +218,11 @@
     "upgrade": {
       "block": 8,
       "counter": 8
-    }
+    },
+    "archetypes": [
+      "block",
+      "control"
+    ]
   },
   "iron_prayer": {
     "name": "Iron Prayer",
@@ -195,7 +233,10 @@
       "Guard"
     ],
     "text": "Gain 17 Block.",
-    "block": 17
+    "block": 17,
+    "archetypes": [
+      "block"
+    ]
   },
   "fortify": {
     "name": "Fortify",
@@ -211,7 +252,11 @@
     "upgradedText": "Gain 8 Fortify. Fortify carries over one turn.",
     "upgrade": {
       "fortify": 8
-    }
+    },
+    "archetypes": [
+      "block",
+      "ward"
+    ]
   },
   "open_vein": {
     "name": "Open Vein",
@@ -229,7 +274,11 @@
     "upgrade": {
       "selfDamage": 2,
       "gainEnergy": 2
-    }
+    },
+    "archetypes": [
+      "bleed",
+      "tempo"
+    ]
   },
   "blood_pact": {
     "name": "Blood Pact",
@@ -247,7 +296,11 @@
     "upgrade": {
       "selfDamage": 4,
       "gainEnergy": 3
-    }
+    },
+    "archetypes": [
+      "tempo",
+      "strength"
+    ]
   },
   "red_carve": {
     "name": "Red Carve",
@@ -266,7 +319,11 @@
     "upgrade": {
       "damage": 11,
       "bonusIfSelfDamaged": 8
-    }
+    },
+    "archetypes": [
+      "strength",
+      "bleed"
+    ]
   },
   "pain_dividend": {
     "name": "Pain Dividend",
@@ -279,7 +336,10 @@
     ],
     "text": "Lose 3 HP. Draw 2.",
     "selfDamage": 3,
-    "draw": 2
+    "draw": 2,
+    "archetypes": [
+      "tempo"
+    ]
   },
   "last_pulse": {
     "name": "Last Pulse",
@@ -297,7 +357,10 @@
     "upgrade": {
       "damage": 22,
       "bonusIfLowHp": 14
-    }
+    },
+    "archetypes": [
+      "strength"
+    ]
   },
   "lantern_step": {
     "name": "Lantern Step",
@@ -316,7 +379,11 @@
     "upgradedText": "Gain 5 Block. Draw 1. Exhaust.",
     "upgrade": {
       "block": 5
-    }
+    },
+    "archetypes": [
+      "tempo",
+      "ward"
+    ]
   },
   "old_technique": {
     "name": "Old Technique",
@@ -333,7 +400,11 @@
     "upgradedText": "Next Attack deals +8. Exhaust.",
     "upgrade": {
       "nextAttackBonus": 8
-    }
+    },
+    "archetypes": [
+      "tempo",
+      "strength"
+    ]
   },
   "lantern_light": {
     "name": "Lantern Light",
@@ -352,7 +423,11 @@
     "upgradedText": "Gain 8 Block and 1 Strength.",
     "upgrade": {
       "block": 8
-    }
+    },
+    "archetypes": [
+      "ward",
+      "strength"
+    ]
   },
   "burn_the_past": {
     "name": "Burn the Past",
@@ -364,13 +439,22 @@
       "Exhaust",
       "Draw"
     ],
-    "text": "Exhaust a random card in hand. Draw 2.",
-    "exhaustRandomHand": 1,
-    "draw": 2,
+    "text": "Apply 3 Burn. Draw 1.",
+    "draw": 1,
     "upgradedName": "Burn the Past+",
-    "upgradedText": "Exhaust a random card in hand. Draw 3.",
+    "upgradedText": "Apply 4 Burn. Draw 2.",
     "upgrade": {
-      "draw": 3
+      "apply": {
+        "Burn": 4
+      },
+      "draw": 2
+    },
+    "archetypes": [
+      "burn",
+      "tempo"
+    ],
+    "apply": {
+      "Burn": 3
     }
   },
   "memory_wick": {
@@ -382,8 +466,12 @@
       "Lantern",
       "Power"
     ],
-    "text": "Whenever you Exhaust a card, deal 3 damage to a random enemy.",
-    "power": "exhaust_damage"
+    "text": "Whenever you Exhaust a card, deal 3 damage and apply 1 Burn.",
+    "power": "exhaust_burn",
+    "archetypes": [
+      "burn",
+      "control"
+    ]
   },
   "hollow_bind": {
     "name": "Hollow Bind",
@@ -398,7 +486,11 @@
     "apply": {
       "Weak": 2
     },
-    "addDiscard": "dissonance"
+    "addDiscard": "dissonance",
+    "archetypes": [
+      "curse",
+      "control"
+    ]
   },
   "dissonant_hymn": {
     "name": "Dissonant Hymn",
@@ -416,6 +508,10 @@
     "addDraw": [
       "dissonance",
       "dissonance"
+    ],
+    "archetypes": [
+      "curse",
+      "control"
     ]
   },
   "rot_bloom": {
@@ -429,7 +525,11 @@
     ],
     "text": "Add Rot. Deal 18 damage.",
     "addDiscard": "rot",
-    "damage": 18
+    "damage": 18,
+    "archetypes": [
+      "curse",
+      "burn"
+    ]
   },
   "mercy_bloom": {
     "name": "Mercy Bloom",
@@ -441,7 +541,11 @@
     ],
     "text": "Heal 5. Add Rot to discard.",
     "heal": 5,
-    "addDiscard": "rot"
+    "addDiscard": "rot",
+    "archetypes": [
+      "curse",
+      "ward"
+    ]
   },
   "dissonance": {
     "name": "Dissonance",
@@ -453,7 +557,10 @@
     ],
     "text": "Unplayable. At end of turn, lose 2 HP.",
     "unplayable": true,
-    "endTurnDamage": 2
+    "endTurnDamage": 2,
+    "archetypes": [
+      "curse"
+    ]
   },
   "rot": {
     "name": "Rot",
@@ -468,7 +575,10 @@
     "unplayable": true,
     "onDrawStatus": {
       "Blight": 1
-    }
+    },
+    "archetypes": [
+      "curse"
+    ]
   },
   "bell_slam": {
     "name": "Bell Slam",
@@ -478,18 +588,24 @@
     "tags": [
       "Hammer"
     ],
-    "text": "Deal 18. Apply 1 Weak.",
+    "text": "Deal 18. Apply 1 Weak and 2 Burn.",
     "damage": 18,
     "apply": {
-      "Weak": 1
+      "Weak": 1,
+      "Burn": 2
     },
     "upgradedName": "Bell Slam+",
-    "upgradedText": "Deal 22. Apply 2 Weak.",
+    "upgradedText": "Deal 22. Apply 2 Weak and 3 Burn.",
     "upgrade": {
       "damage": 22,
       "apply": {
-        "Weak": 2
+        "Weak": 2,
+        "Burn": 3
       }
-    }
+    },
+    "archetypes": [
+      "control",
+      "burn"
+    ]
   }
 }

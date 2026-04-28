@@ -12,6 +12,12 @@ let DB = {};
 let S = null;
 let pendingVictoryRewards = null;
 const CARD_RARITIES = ["common", "uncommon", "rare"];
+const BUILD_ARCHETYPES = ["bleed", "block", "curse", "tempo", "burn", "ward", "strength", "control"];
+const RELIC_HOOKS = new Set([
+  "combatStart","turnStart","turnEnd","cardPlayed","attackPlayed","skillPlayed","statusApplied","bleedApplied","burnApplied",
+  "blockGained","debuffBlocked","damageDealt","damageTaken","lethalDamage","cardAddedDuringCombat","enemyKilled","combatEnd",
+  "modifyCardCost","modifyAttackDamage","modifyEnemyIntentDamage","modifyWeakApplication"
+]);
 const REWARD_FLAVOR = [
   "The ash settles. Something useful remains.",
   "A fragment of technique returns to memory.",
@@ -25,6 +31,7 @@ const STATUS_INFO = {
   Frail: "Block gained is reduced while active.",
   Blight: "Reduces healing effects.",
   Bleed: "A lingering wound effect used by many cards and enemies.",
+  Burn: "Burn deals damage at end of your turn, then decreases by 1.",
   Ward: "Negates the next incoming debuff.",
   Bound: "Restricts your options until removed.",
   Doom: "A lethal omen. Survive before it resolves."
@@ -87,6 +94,16 @@ function normalizeDeckState(){
 function getCardDef(cardOrId){
   const cardId = cardIdOf(cardOrId);
   return DB.cards[cardId] || null;
+}
+function getRelicDef(relicId){
+  return DB.relics?.[relicId] || null;
+}
+function hasRelic(relicId){
+  return S?.relics?.includes(relicId);
+}
+function relicLog(text){
+  if(!S?.combat) return;
+  S.combat.log.push(`Relic: ${text}`);
 }
 
 function isCardUpgraded(cardInstance){
@@ -159,7 +176,8 @@ function fresh(){
     selectedNodeId:null,
     mapEncounter:null,
     pendingNodeCompletion:null,
-    map:null
+    map:null,
+    flags:{}
   };
   title();
 }
@@ -273,6 +291,8 @@ function hydrateSave(){
   S.map.step = Number.isFinite(S.map.step) ? S.map.step : 0;
   S.map.currentNodeId = S.map.currentNodeId || null;
   S.map.pathHistory = Array.isArray(S.map.pathHistory) ? S.map.pathHistory : [];
+  S.flags = S.flags || {};
+  S.relics = (Array.isArray(S.relics) ? S.relics : []).filter((id)=>DB.relics[id]);
   normalizeDeckState();
   pendingVictoryRewards = null;
 }
@@ -398,7 +418,7 @@ function drawWorld(){
     </div>
     <div class="controls">
       <div class="actionbar">
-        <button onclick="saveGame()">Save</button><button onclick="showDeck()">Deck</button><button onclick="showCodex()">Codex</button><button onclick="quest()">Quest</button>
+        <button onclick="saveGame()">Save</button><button onclick="showDeck()">Deck</button><button onclick="showBuildPanel()">Build</button><button onclick="showCodex()">Codex</button><button onclick="quest()">Quest</button>
       </div>
     </div>
   </div>`;
@@ -434,11 +454,9 @@ function enterSelectedNode(){
   }
   if(node.type === "treasure"){
     S.gold += 75;
-    const relic = pick(Object.keys(DB.relics));
-    if(!S.relics.includes(relic)) S.relics.push(relic);
-    toast(`Treasure found: +75g and ${DB.relics[relic].name}.`);
-    pendingVictoryRewards = { nodeId:node.id, source:"treasure" };
-    return showCardReward("treasure", { summary:`Claimed ${node.title}.`, nodeId:node.id });
+    pendingVictoryRewards = { nodeId:node.id, source:"treasure", summary:`Claimed ${node.title}.`, showCardAfterRelic:true };
+    toast("Treasure found: choose a relic.");
+    return showRelicReward("treasure");
   }
   if(node.type === "shop"){
     return mapShop(node.id);
@@ -518,11 +536,42 @@ function cardClassNames(cardInstance){
   if(!card) return "card";
   return ["card", `card-${card.rarity}`, isCardUpgraded(cardInstance) ? "card-upgraded" : ""].filter(Boolean).join(" ");
 }
+function renderArchetypeChips(archetypes = []){
+  if(!archetypes?.length) return "";
+  return `<div class="archetype-row">${archetypes.map((a)=>`<span class="archetype-chip archetype-${a}">${a}</span>`).join("")}</div>`;
+}
 function renderCardSummary(cardInstance){
   const card = getCardInstanceDef(cardInstance);
   if(!card) return "";
   const tags = (card.tags || []).join(", ");
-  return `<div class="${cardClassNames(cardInstance)}"><span class="cost">${card.unplayable ? "–" : card.cost}</span><h4>${card.name}</h4><div class="art"></div><div class="type">${card.type} · ${card.rarity}</div><div class="txt">${card.text}${tags ? `<br><span class="small">Keywords: ${tags}</span>` : ""}</div></div>`;
+  return `<div class="${cardClassNames(cardInstance)}"><span class="cost">${card.unplayable ? "–" : card.cost}</span><h4>${card.name}</h4><div class="art"></div><div class="type">${card.type} · ${card.rarity}</div>${renderArchetypeChips(card.archetypes)}<div class="txt">${card.text}${tags ? `<br><span class="small">Keywords: ${tags}</span>` : ""}</div></div>`;
+}
+function getBuildSummary(){
+  const counts = Object.fromEntries(BUILD_ARCHETYPES.map((a)=>[a,0]));
+  const statusSignals = new Set();
+  normalizeCardPile(S.deck).forEach((card)=>{
+    const def = getCardInstanceDef(card);
+    (def?.archetypes || []).forEach((a)=>{ if(counts[a] !== undefined) counts[a] += 1; });
+    if(def?.apply?.Bleed) statusSignals.add("Bleed");
+    if(def?.apply?.Burn) statusSignals.add("Burn");
+    if(def?.apply?.Weak) statusSignals.add("Weak");
+    if(def?.playerStatus?.Ward) statusSignals.add("Ward");
+  });
+  (S.relics || []).forEach((id)=>{
+    (DB.relics[id]?.archetypes || []).forEach((a)=>{ if(counts[a] !== undefined) counts[a] += 1; });
+  });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const top = sorted.filter(([,v])=>v>0).slice(0,2).map(([k])=>k);
+  return { counts, top, statusSignals:[...statusSignals], relics:(S.relics || []).map((id)=>DB.relics[id]?.name || id) };
+}
+function showBuildPanel(){
+  const summary = getBuildSummary();
+  const signalRows = Object.entries(summary.counts).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]).slice(0,5)
+    .map(([k,v])=>`${v} ${k}`).join(", ");
+  modal("Run Identity", `<p>Current build leans: <b>${summary.top.join(" / ") || "Unfocused"}</b></p>
+    <p>Deck signals: ${signalRows || "No archetypes detected yet."}</p>
+    <p>Key statuses: ${summary.statusSignals.join(", ") || "None"}</p>
+    <p><b>Relics:</b> ${summary.relics.join(", ") || "None"}</p>`);
 }
 function showDeck(){
   const deck = normalizeCardPile(S.deck);
@@ -536,10 +585,11 @@ function showDeck(){
     const def = getCardInstanceDef(card);
     return `<div class="deck-row"><div><b>${def?.name || card.id}</b> x${count}</div><div class="small">${def?.type || "Unknown"} · ${def?.rarity || "?"} · Cost ${def?.cost ?? "?"}</div><div class="small">${def?.text || "Missing card definition."}</div></div>`;
   }).join("");
-  modal("Deck", `<p>${deck.length} cards</p><div class="deck-list">${rows || "<p>Deck empty.</p>"}</div>`);
+  const build = getBuildSummary();
+  modal("Deck", `<p>${deck.length} cards</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p><div class="deck-list">${rows || "<p>Deck empty.</p>"}</div>`);
 }
 function showCodex(){
-  modal("Codex", `<p><b>Relics:</b> ${S.relics.map(id=>DB.relics[id].name).join(", ")}</p><p><b>Kills:</b> ${S.kills}</p><p><b>Deaths:</b> ${S.deaths}</p><p><b>False Ending:</b> ${S.falseEnding ? "Unlocked" : "Not yet"}</p><p><b>Direction:</b> Route choice is now the spine of each run.</p>`);
+  modal("Codex", `<p><b>Relics:</b> ${S.relics.map(id=>DB.relics[id].name).join(", ")}</p><p><b>Kills:</b> ${S.kills}</p><p><b>Deaths:</b> ${S.deaths}</p><p><b>False Ending:</b> ${S.falseEnding ? "Unlocked" : "Not yet"}</p><p><b>Direction:</b> Route choice is now the spine of each run.</p><button onclick="showBuildPanel()">Show Build Identity</button>`);
 }
 function quest(){
   toast("Choose your path carefully. Boss waits at the final step.");
@@ -619,6 +669,130 @@ function upgradeAtCamp(){
   if(i>=0){ const upgraded = upgradeCardInstance(S.deck[i]); S.deck.splice(i,1, upgraded); document.querySelector(".modal")?.remove(); toast("You refine your deck."); drawWorld(); }
   else toast("Nothing basic to refine.");
 }
+function triggerRelics(hook, payload = {}){
+  if(!RELIC_HOOKS.has(hook) || !Array.isArray(S?.relics)) return;
+  for(const relicId of S.relics){
+    switch(relicId){
+      case "pilgrims_nail":
+        if(hook === "blockGained" && !S.combat.flags?.firstBlockTriggered){
+          S.combat.flags.firstBlockTriggered = true;
+          gainBlock(DB.relics.pilgrims_nail.value, { fromRelic:true });
+          relicLog("Saint's Buckler grants +3 Block.");
+        }
+        break;
+      case "bellplate_charm":
+        if(hook === "skillPlayed" && S.combat.skillsPlayed % 3 === 0){
+          gainBlock(DB.relics.bellplate_charm.value, { fromRelic:true });
+          relicLog("Iron Psalm grants +5 Block.");
+        }
+        break;
+      case "bone_prayer_beads":
+        if(hook === "turnStart" && S.combat.turn === 1){
+          S.combat.energy += DB.relics.bone_prayer_beads.value;
+          relicLog("Ashen Spur grants +1 energy.");
+        }
+        break;
+      case "rusted_fang":
+        if(hook === "bleedApplied" && payload.enemy){
+          payload.enemy.hp -= DB.relics.rusted_fang.value;
+          enemyHitFx(); floatFeedback(`-${DB.relics.rusted_fang.value}`, "enemy");
+          relicLog("Bloodglass Thorn spikes extra damage.");
+        }
+        break;
+      case "hollow_crown":
+        if(hook === "combatStart"){
+          S.combat.hand.push(createCardInstance("dissonance", { temporary:true }));
+          drawCards(1);
+          relicLog("Debt Bell tolls: Dissonance added, then draw 1.");
+        }
+        break;
+      case "red_thread_spool":
+        if(hook === "turnEnd" && (S.combat.enemy.elite || S.combat.enemy.boss) && (S.combat.enemy.status.Bleed || 0) > 0){
+          const bleed = S.combat.enemy.status.Bleed;
+          S.combat.enemy.hp -= bleed;
+          S.combat.enemy.status.Bleed = Math.max(0, S.combat.enemy.status.Bleed - 1);
+          floatFeedback(`-${bleed}`, "enemy");
+          relicLog("Red Thread Spool triggers an extra Bleed tick.");
+        }
+        break;
+      case "butchers_prayer":
+        if(hook === "combatStart") applyEnemyStatus({ Bleed: DB.relics.butchers_prayer.value });
+        break;
+      case "hollow_ink":
+        if(hook === "cardAddedDuringCombat" && payload.cardType === "Curse"){
+          applyPlayerStatus({ Strength: DB.relics.hollow_ink.value }, "self");
+          relicLog("Hollow Ink converts Curse into Strength.");
+        }
+        break;
+      case "broken_metronome":
+        if(hook === "cardPlayed" && S.combat.cardsPlayedThisTurn % 4 === 0){
+          S.combat.enemy.hp -= DB.relics.broken_metronome.value;
+          enemyHitFx(); floatFeedback(`-${DB.relics.broken_metronome.value}`, "enemy");
+          relicLog("Broken Metronome strikes on the 4th card.");
+        }
+        break;
+      case "ember_nail":
+        if(hook === "burnApplied" && payload.enemy){
+          payload.enemy.status.Burn = (payload.enemy.status.Burn || 0) + DB.relics.ember_nail.value;
+          relicLog("Ember Nail adds +1 Burn.");
+        }
+        break;
+      case "furnace_saint":
+        if(hook === "turnEnd"){
+          const burn = S.combat.enemy.status.Burn || 0;
+          if(burn > 0){
+            S.combat.enemy.hp -= burn;
+            S.combat.enemy.status.Burn = Math.max(0, burn - 1);
+            floatFeedback(`-${burn}`, "enemy");
+            relicLog("Furnace Saint ignites stored Burn.");
+          }
+        }
+        break;
+      case "wax_lantern":
+        if(hook === "combatStart") applyPlayerStatus({ Ward: DB.relics.wax_lantern.value }, "self");
+        break;
+      case "pale_seal":
+        if(hook === "debuffBlocked") gainBlock(DB.relics.pale_seal.value, { fromRelic:true });
+        break;
+      case "beast_crown_splinter":
+        if(hook === "attackPlayed" && S.combat.attacksPlayed % 3 === 0) applyPlayerStatus({ Strength: DB.relics.beast_crown_splinter.value }, "self");
+        break;
+      case "red_muscle_idol":
+        if(hook === "statusApplied" && payload.target === "player" && payload.status === "Strength"){
+          gainBlock(DB.relics.red_muscle_idol.value, { fromRelic:true });
+        }
+        break;
+      case "mercy_root":
+        if(hook === "turnEnd" && S.combat.block > 0){
+          S.combat.retainBlockNextTurn = Math.max(S.combat.retainBlockNextTurn || 0, DB.relics.mercy_root.value);
+          relicLog("Stone-Vow Rosary stores Block for next turn.");
+        }
+        break;
+      case "still_hand":
+        if(hook === "turnEnd" && S.combat.attacksPlayed === 0){
+          S.combat.drawBonusNextTurn = (S.combat.drawBonusNextTurn || 0) + DB.relics.still_hand.value;
+          relicLog("Still Hand grants +1 draw next turn.");
+        }
+        break;
+    }
+  }
+}
+function modifyByRelics(hook, value, payload = {}){
+  let out = value;
+  if(!RELIC_HOOKS.has(hook)) return out;
+  for(const relicId of S.relics || []){
+    if(relicId === "dull_whetstone" && hook === "modifyAttackDamage" && payload.firstAttack) out += DB.relics.dull_whetstone.value;
+    if(relicId === "vein_drinker" && hook === "modifyAttackDamage" && (S.combat.enemy.status.Burn || 0) > 0) out += DB.relics.vein_drinker.value;
+    if(relicId === "blindfold_charm" && hook === "modifyEnemyIntentDamage" && payload.firstEnemyAttack) out = Math.max(0, out - DB.relics.blindfold_charm.value);
+    if(relicId === "infant_bell" && hook === "modifyCardCost" && payload.card?.type === "Curse" && !S.combat.flags?.firstCursePlayed){
+      S.combat.flags.firstCursePlayed = true;
+      out = 0;
+    }
+    if(relicId === "cracked_charm" && hook === "modifyCardCost" && !S.combat.flags?.firstCardPlayed) out = 0;
+    if(relicId === "quiet_needle" && hook === "modifyWeakApplication") out += 1;
+  }
+  return out;
+}
 
 function startCombat(enemyId, nodeId = null){
   const e = clone(DB.enemies[enemyId]);
@@ -627,15 +801,16 @@ function startCombat(enemyId, nodeId = null){
   e.maxHp = e.hp; e.turn = 0; e.block = 0; e.status = {};
   S.pendingNodeCompletion = nodeId;
   const deck = S.deck.slice();
-  if(S.relics.includes("hollow_crown")) deck.push(...DB.relics.hollow_crown.curses.map((id)=>createCardInstance(id)));
   S.combat = {
     enemy:e, draw:shuffle(deck), hand:[], discard:[], exhaust:[],
-    energy:3 + (S.relics.includes("hollow_crown") ? 1 : 0),
-    block:S.relics.includes("pilgrims_nail") ? DB.relics.pilgrims_nail.value : 0,
+    energy:3,
+    block:0,
     fortify:0, str:0, weak:0, frail:0, blight:0, bleed:0, bonus:0, bled:false,
     counter:0, turn:1, firstAtk:true, firstSkill:true, skillsPlayed:0, blockMeter:0,
-    powers:{}, log:[`${e.name} appears.`], nextTurnDrain:0, locked:false
+    powers:{}, log:[`${e.name} appears.`], nextTurnDrain:0, locked:false, cardsPlayedThisTurn:0, attacksPlayed:0,
+    drawBonusNextTurn:0, retainBlockNextTurn:0, flags:{}
   };
+  triggerRelics("combatStart", { enemy:e });
   drawCards(5);
   combatUI();
 }
@@ -649,10 +824,6 @@ function drawCards(n){
     const card = getCardInstanceDef(cardInstance);
     if(card.onDrawStatus){
       Object.entries(card.onDrawStatus).forEach(([k,v])=>C[k.toLowerCase()] = (C[k.toLowerCase()]||0)+v);
-    }
-    if(card.type==="Curse" && S.relics.includes("infant_bell")){
-      C.energy += DB.relics.infant_bell.value;
-      C.log.push("Infant Bell grants 1 Energy.");
     }
   }
 }
@@ -722,10 +893,10 @@ function cardHTML(cardInstance,i){
   const ca = getCardInstanceDef(cardInstance), C = S.combat;
   if(!ca) return "";
   let cost = ca.cost;
-  if(C.firstSkill && ca.type==="Skill" && S.relics.includes("cracked_charm")) cost = 0;
+  cost = modifyByRelics("modifyCardCost", cost, { card:ca });
   const dis = C.locked || ca.unplayable || cost > C.energy;
   const classes = [cardClassNames(cardInstance), dis ? "disabled" : "playable"].join(" ");
-  return `<div class="${classes}" data-index="${i}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div><div class="txt">${ca.text}</div></div>`;
+  return `<div class="${classes}" data-index="${i}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div>${renderArchetypeChips(ca.archetypes)}<div class="txt">${ca.text}</div></div>`;
 }
 function floatFeedback(text, target = "enemy"){
   const stage = document.getElementById("stage");
@@ -750,7 +921,6 @@ function damageEnemy(amount, hits=1){
   let total=0;
   for(let h=0;h<hits;h++){
     let dmg = amount + C.str;
-    if(S.relics.includes("rusted_fang") && hits>1) dmg += DB.relics.rusted_fang.value;
     if(C.bonus){ dmg += C.bonus; C.bonus = 0; }
     if(E.status.Weak>0) dmg = Math.floor(dmg * 1.1);
     const blocked = Math.min(E.block || 0, dmg);
@@ -759,25 +929,28 @@ function damageEnemy(amount, hits=1){
     E.hp -= dmg; total += dmg;
   }
   C.log.push(`Dealt ${total}.`);
+  triggerRelics("damageDealt", { amount:total });
   enemyHitFx(); floatFeedback(`-${total}`, "enemy");
 }
-function gainBlock(amount){
+function gainBlock(amount, options = {}){
   const C = S.combat;
   if(C.frail>0) amount = Math.floor(amount*.75);
   C.block += amount;
-  C.blockMeter += amount;
   C.log.push(`Gained ${amount} Block.`);
   floatFeedback(`+${amount} Block`, "player");
-  if(S.relics.includes("bellplate_charm") && C.blockMeter >= DB.relics.bellplate_charm.threshold){
-    C.blockMeter -= DB.relics.bellplate_charm.threshold;
-    S.combat.enemy.hp -= DB.relics.bellplate_charm.value;
-    C.log.push("Bellplate Charm tolls.");
-    enemyHitFx(); floatFeedback(`-${DB.relics.bellplate_charm.value}`, "enemy");
-  }
+  if(!options.fromRelic) triggerRelics("blockGained", { amount });
 }
 function applyEnemyStatus(obj){
   const E = S.combat.enemy;
-  Object.entries(obj||{}).forEach(([k,v])=>{ E.status[k]=(E.status[k]||0)+v; S.combat.log.push(`${E.name} gains ${k}.`); });
+  Object.entries(obj||{}).forEach(([k,v])=>{
+    let amount = v;
+    if(k === "Weak") amount = modifyByRelics("modifyWeakApplication", v, { source:"card" });
+    E.status[k]=(E.status[k]||0)+amount;
+    if(k === "Bleed") triggerRelics("bleedApplied", { enemy:E, amount });
+    if(k === "Burn") triggerRelics("burnApplied", { enemy:E, amount });
+    triggerRelics("statusApplied", { target:"enemy", status:k, amount });
+    S.combat.log.push(`${E.name} gains ${k}.`);
+  });
 }
 function isNegativePlayerStatus(k){
   return ["Weak", "Frail", "Blight", "Bleed", "Bound", "Doom"].includes(k);
@@ -790,23 +963,41 @@ function applyPlayerStatus(obj, source = "self"){
       C.ward -= 1;
       C.log.push(`Ward negated ${k}.`);
       floatFeedback("Ward!", "player");
+      triggerRelics("debuffBlocked", { status:k });
       return;
     }
     if(k==="Strength") C.str += v;
     else C[k.toLowerCase()] = (C[k.toLowerCase()]||0)+v;
+    triggerRelics("statusApplied", { target:"player", status:k, amount:v });
     C.log.push(`You gain ${k}.`);
     floatFeedback(`${k} +${v}`, "player");
   });
 }
+function resolvePotentialLethalDamage(){
+  if(S.hp > 0) return false;
+  if(hasRelic("lantern_heart") && !S.flags?.mercyThreadUsed && (S.combat?.ward || 0) > 0){
+    S.flags = S.flags || {};
+    S.flags.mercyThreadUsed = true;
+    S.combat.ward = 0;
+    S.hp = 1;
+    relicLog("Mercy Thread saves you from lethal damage.");
+    floatFeedback("Mercy Thread!", "player");
+    triggerRelics("lethalDamage", {});
+    return true;
+  }
+  return false;
+}
 async function playCard(i){
   const C = S.combat, cardInstance = C.hand[i], ca = getCardInstanceDef(cardInstance), id = cardIdOf(cardInstance);
   if(!ca || ca.unplayable || C.locked) return;
-  let cost = ca.cost;
-  if(C.firstSkill && ca.type==="Skill" && S.relics.includes("cracked_charm")) cost = 0;
+  let cost = modifyByRelics("modifyCardCost", ca.cost, { card:ca });
   if(cost > C.energy) return;
   C.locked = true;
   C.energy -= cost; C.hand.splice(i,1);
+  C.flags.firstCardPlayed = true;
+  C.cardsPlayedThisTurn += 1;
   C.log.push(`Played ${ca.name}.`);
+  triggerRelics("cardPlayed", { card:ca, cardId:id });
   safeCombatUIUpdate();
   document.querySelector(`.card[data-index="${i}"]`)?.classList.add("activating");
   await sleep(animDelay(80));
@@ -814,15 +1005,12 @@ async function playCard(i){
 
   if(ca.type==="Skill"){
     C.skillsPlayed++;
-    if(S.relics.includes("bone_prayer_beads") && C.skillsPlayed % 3 === 0){
-      C.energy += DB.relics.bone_prayer_beads.value;
-      C.log.push("Bone Prayer Beads grant energy.");
-    }
-    if(S.weapon==="wax_lantern" && C.firstSkill){ C.ward = (C.ward||0)+1; C.log.push("Wax Lantern grants Ward."); }
+    triggerRelics("skillPlayed", { card:ca });
     C.firstSkill = false;
   }
   if(ca.type==="Attack"){
-    if(S.relics.includes("vein_drinker")) S.hp = Math.min(S.maxHp, S.hp + DB.relics.vein_drinker.value);
+    C.attacksPlayed += 1;
+    triggerRelics("attackPlayed", { card:ca });
   }
   if(ca.selfDamage){
     S.hp -= ca.selfDamage; C.bled = true;
@@ -841,8 +1029,14 @@ async function playCard(i){
     applyEnemyStatus(ca.apply);
     Object.entries(ca.apply).forEach(([k,v])=>floatFeedback(`${k} +${v}`, "enemy"));
   }
-  if(ca.addDiscard) C.discard.push(createCardInstance(ca.addDiscard));
-  if(ca.addDraw) C.draw.push(...ca.addDraw.map((id)=>createCardInstance(id)));
+  if(ca.addDiscard){
+    C.discard.push(createCardInstance(ca.addDiscard));
+    triggerRelics("cardAddedDuringCombat", { cardId:ca.addDiscard, cardType: DB.cards[ca.addDiscard]?.type });
+  }
+  if(ca.addDraw){
+    C.draw.push(...ca.addDraw.map((id)=>createCardInstance(id)));
+    ca.addDraw.forEach((newId)=>triggerRelics("cardAddedDuringCombat", { cardId:newId, cardType: DB.cards[newId]?.type }));
+  }
   if(ca.exhaustRandomHand && C.hand.length){
     const idx = Math.floor(Math.random()*C.hand.length);
     const removed = C.hand.splice(idx,1)[0];
@@ -859,10 +1053,10 @@ async function playCard(i){
       C.energy += 1; C.log.push("Status synergy grants energy.");
     }
     if(C.firstAtk){
-      if(S.relics.includes("dull_whetstone")) dmg += DB.relics.dull_whetstone.value;
       if(S.weapon==="chipped_blade") dmg += 2;
-      C.firstAtk = false;
     }
+    dmg = modifyByRelics("modifyAttackDamage", dmg, { firstAttack:C.firstAtk, card:ca });
+    C.firstAtk = false;
     damageEnemy(dmg, ca.hits || 1);
   }
 
@@ -870,7 +1064,7 @@ async function playCard(i){
   else if(ca.type !== "Power") C.discard.push(cardInstance);
 
   await sleep(animDelay(220));
-  if(S.hp<=0){ C.locked = false; return death(); }
+  if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
   if(C.enemy.hp<=0){ C.locked = false; return victory(); }
   C.locked = false;
   safeCombatUIUpdate();
@@ -892,6 +1086,14 @@ async function endTurn(){
     floatFeedback(`-${bleedDamage}`, "enemy");
     E.status.Bleed = Math.max(0, E.status.Bleed - 1);
   }
+  if((E.status.Burn || 0) > 0){
+    const burnDamage = E.status.Burn;
+    E.hp -= burnDamage;
+    C.log.push(`${E.name} burns for ${burnDamage}.`);
+    floatFeedback(`-${burnDamage}`, "enemy");
+    E.status.Burn = Math.max(0, E.status.Burn - 1);
+  }
+  triggerRelics("turnEnd", { enemy:E });
 
   if(E.hp<=0){ C.locked = false; return victory(); }
   await sleep(animDelay(120));
@@ -900,6 +1102,7 @@ async function endTurn(){
     animateEnemyIntent(it);
     let dmg = it.damage + (E.status.Strength||0);
     if(E.status.Weak>0) dmg = Math.floor(dmg*.75);
+    dmg = modifyByRelics("modifyEnemyIntentDamage", dmg, { firstEnemyAttack:E.turn === 0 });
     const blocked = Math.min(C.block, dmg);
     const taken = dmg - blocked;
     C.block -= blocked; S.hp -= taken;
@@ -929,19 +1132,20 @@ async function endTurn(){
     floatFeedback(`-${it.amount} Energy`, "center");
   }
 
-  if(S.hp<=0){ C.locked = false; return death(); }
+  if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
   if(E.hp<=0){ C.locked = false; return victory(); }
 
   E.turn++;
   C.turn++;
-  C.energy = 3 + (S.relics.includes("hollow_crown") ? 1 : 0) - (C.nextTurnDrain||0);
+  C.energy = 3 - (C.nextTurnDrain||0);
   C.nextTurnDrain = 0;
-  C.block = C.fortify || 0;
+  C.block = Math.max(C.fortify || 0, C.retainBlockNextTurn || 0);
+  C.retainBlockNextTurn = 0;
   C.fortify = 0;
-  C.bled = false; C.counter = 0; C.firstAtk = true; C.firstSkill = true;
+  C.bled = false; C.counter = 0; C.firstAtk = true; C.firstSkill = true; C.cardsPlayedThisTurn = 0; C.attacksPlayed = 0;
   ["weak","frail","blight"].forEach(k=>{ if(C[k]>0) C[k]--; });
   Object.keys(E.status).forEach(k=>{
-    if(k === "Bleed") return;
+    if(k === "Bleed" || k === "Burn") return;
     if(E.status[k]>0) E.status[k]--;
   });
   if((C.bleed || 0) > 0){
@@ -950,14 +1154,11 @@ async function endTurn(){
     C.log.push(`You bleed for ${selfBleed}.`);
     floatFeedback(`-${selfBleed}`, "player");
     C.bleed = Math.max(0, C.bleed - 1);
-    if(S.hp<=0){ C.locked = false; return death(); }
+    if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
   }
-  if(S.relics.includes("mercy_root")){
-    const heal = DB.relics.mercy_root.value;
-    S.hp = Math.min(S.maxHp, S.hp + heal);
-    floatFeedback(`+${heal} HP`, "player");
-  }
-  drawCards(5);
+  triggerRelics("turnStart", { turn:C.turn });
+  drawCards(5 + (C.drawBonusNextTurn || 0));
+  C.drawBonusNextTurn = 0;
   C.locked = false;
   safeCombatUIUpdate();
 }
@@ -967,10 +1168,54 @@ function victory(){
   S.kills++; S.gold += E.elite ? 65 : boss ? 100 : 30;
   S.combat = null;
   if(completionNode){
-    pendingVictoryRewards = { nodeId:completionNode, source: boss ? "boss" : E.elite ? "elite" : "combat" };
-    showCardReward(pendingVictoryRewards.source, { nodeId: completionNode, summary: boss ? "Boss defeated." : "Won battle." });
+    const source = boss ? "boss" : E.elite ? "elite" : "combat";
+    pendingVictoryRewards = { nodeId:completionNode, source, summary: boss ? "Boss defeated." : "Won battle.", showCardAfterRelic: source !== "combat" };
+    if(source === "combat") showCardReward(source, { nodeId: completionNode, summary: pendingVictoryRewards.summary });
+    else showRelicReward(source);
     return;
   }
+  drawWorld();
+}
+function pickRelicCandidates(count = 1){
+  const pool = Object.entries(DB.relics).filter(([id, relic])=>relic.stackable || !S.relics.includes(id)).map(([id])=>id);
+  const out = [];
+  const copy = [...pool];
+  while(out.length < count && copy.length){
+    const idx = Math.floor(Math.random() * copy.length);
+    out.push(copy.splice(idx, 1)[0]);
+  }
+  return out;
+}
+function renderRelicSummary(relicId){
+  const relic = getRelicDef(relicId);
+  if(!relic) return "";
+  return `<div class="deck-row"><div><b>${relic.name}</b> <span class="small">${relic.rarity}</span></div><div class="small">${relic.text}</div>${renderArchetypeChips(relic.archetypes)}</div>`;
+}
+function showRelicReward(source = "elite"){
+  const choiceCount = source === "boss" ? 3 : 1;
+  const choices = pickRelicCandidates(choiceCount);
+  const build = getBuildSummary();
+  G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${source.toUpperCase()} Relic Reward</div><div class="small">Choose a relic to shape your run.</div></div><div><span class="pill">Relics ${S.relics.length}</span></div></div>
+    <div class="reward-wrap"><p class="small">${pendingVictoryRewards?.summary || "Victory."}</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p>
+    <div class="reward-grid">${choices.map((id)=>`<button onclick="pickRelicReward('${id}')">${renderRelicSummary(id)}</button>`).join("")}</div>
+    <div class="reward-actions"><button onclick="showBuildPanel()">View Build</button><button onclick="skipRelicReward()">Skip</button></div></div></div>`;
+}
+function pickRelicReward(relicId){
+  if(!DB.relics[relicId]) return;
+  if(!DB.relics[relicId].stackable && S.relics.includes(relicId)) return toast("Already owned.");
+  S.relics.push(relicId);
+  toast(`${DB.relics[relicId].name} acquired.`);
+  skipRelicReward(false);
+}
+function skipRelicReward(notify = true){
+  if(notify) toast("You leave the relic behind.");
+  if(pendingVictoryRewards?.showCardAfterRelic){
+    return showCardReward(pendingVictoryRewards.source, { nodeId:pendingVictoryRewards.nodeId, summary:pendingVictoryRewards.summary });
+  }
+  const nodeId = pendingVictoryRewards?.nodeId;
+  const summary = pendingVictoryRewards?.summary || "Victory.";
+  pendingVictoryRewards = null;
+  completeCurrentNode({ nodeId, text:summary });
   drawWorld();
 }
 function generateCardRewardChoices(source = "combat"){
@@ -985,18 +1230,33 @@ function generateCardRewardChoices(source = "combat"){
   const weights = weightsBySource[source] || weightsBySource.combat;
   const byRarity = Object.fromEntries(CARD_RARITIES.map((rarity)=>[rarity, []]));
   pool.forEach(([id, card])=>{ if(byRarity[card.rarity]) byRarity[card.rarity].push(id); });
+  const focus = getBuildSummary().top;
+  const scoreCard = (id)=>{
+    const card = DB.cards[id];
+    const base = 1 + (focus.some((a)=>(card.archetypes || []).includes(a)) ? 0.55 : 0);
+    return base;
+  };
+  const weightedPick = (ids)=>{
+    const total = ids.reduce((sum,id)=>sum + scoreCard(id), 0);
+    let roll = Math.random() * total;
+    for(const id of ids){
+      roll -= scoreCard(id);
+      if(roll <= 0) return id;
+    }
+    return ids[0];
+  };
   const picks = [];
   while(picks.length < 3){
     const roll = Math.random();
     const rarity = roll < weights.common ? "common" : roll < weights.common + weights.uncommon ? "uncommon" : "rare";
     const rarityPool = byRarity[rarity].filter((id)=>!picks.includes(id));
     if(rarityPool.length){
-      picks.push(pick(rarityPool));
+      picks.push(weightedPick(rarityPool));
       continue;
     }
     const backup = pool.map(([id])=>id).filter((id)=>!picks.includes(id));
     if(!backup.length) break;
-    picks.push(pick(backup));
+    picks.push(weightedPick(backup));
   }
   return picks;
 }
@@ -1004,9 +1264,10 @@ function showCardReward(source = "combat", options = {}){
   const choices = generateCardRewardChoices(source);
   pendingVictoryRewards = { ...(pendingVictoryRewards || {}), source, nodeId: options.nodeId || pendingVictoryRewards?.nodeId, summary: options.summary || "Won battle." };
   const sourceLabel = source.charAt(0).toUpperCase() + source.slice(1);
+  const build = getBuildSummary();
   G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${sourceLabel} Reward</div><div class="small">${pick(REWARD_FLAVOR)}</div></div><div><span class="pill">Deck ${S.deck.length}</span><span class="pill">${S.gold}g</span></div></div>
-    <div class="reward-wrap"><p class="small">${pendingVictoryRewards.summary} Choose one memory or pass.</p><div class="reward-grid">${choices.map((id)=>`<button class="reward-choice" onclick="pickRewardCard('${id}')">${renderCardSummary(createCardInstance(id))}</button>`).join("")}</div>
-    <div class="reward-actions"><button onclick="showDeck()">View Deck</button><button onclick="skipCardReward()">Skip</button></div></div></div>`;
+    <div class="reward-wrap"><p class="small">${pendingVictoryRewards.summary} Choose one memory or pass.</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p><div class="reward-grid">${choices.map((id)=>`<button class="reward-choice" onclick="pickRewardCard('${id}')">${renderCardSummary(createCardInstance(id))}</button>`).join("")}</div>
+    <div class="reward-actions"><button onclick="showDeck()">View Deck</button><button onclick="showBuildPanel()">Build</button><button onclick="skipCardReward()">Skip</button></div></div></div>`;
 }
 function pickRewardCard(cardId){
   addCardToDeck(cardId);
