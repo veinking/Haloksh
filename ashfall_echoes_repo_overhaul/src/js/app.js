@@ -10,8 +10,7 @@ const DATA_PATHS = {
 const G = document.getElementById("game");
 let DB = {};
 let S = null;
-let timer = null;
-let currentSpot = null;
+let pendingVictoryRewards = null;
 
 const STATUS_INFO = {
   Strength: "Adds damage to attacks.",
@@ -67,7 +66,11 @@ function fresh(){
     cleared:{}, falseEnding:false, truePilgrimage:false,
     memories:[], kills:0, deaths:0,
     alignment:{silence:0,memory:0,flame:0,root:0},
-    combat:null
+    combat:null,
+    selectedNodeId:null,
+    mapEncounter:null,
+    pendingNodeCompletion:null,
+    map:null
   };
   title();
 }
@@ -101,6 +104,10 @@ function startRun(weapon, body){
   S.weapon = weapon;
   S.body = body;
   S.deck = DB.weapons[weapon].starter.slice();
+  S.selectedNodeId = null;
+  S.mapEncounter = null;
+  S.pendingNodeCompletion = null;
+  S.map = generateRunMap();
   cutscene("The Dead Shrine", "You wake beneath a cracked shrine. The lantern in your chest burns like it recognizes the road ahead.", drawWorld);
 }
 
@@ -112,116 +119,264 @@ function loadSave(){
   const raw = localStorage.getItem("ashfall_repo_save");
   if(!raw) return toast("No save found.");
   S = JSON.parse(raw);
+  hydrateSave();
   drawWorld();
 }
 
-const parishSpots = [
-  {id:"grave",type:"event",kind:"eventSpot",x:150,y:410,label:"Dead Shrine",title:"Dead Shrine",desc:"A memory is buried beneath ash."},
-  {id:"hound",type:"combat",kind:"combatSpot",x:315,y:350,label:"Ash Hound",enemy:"ash_hound",title:"Ash Hound",desc:"A fast enemy. Low HP, painful bites."},
-  {id:"shop",type:"shop",kind:"shopSpot",x:500,y:430,label:"Marl",title:"Marl's Pack",desc:"Buy cards or remove dead weight."},
-  {id:"rats",type:"combat",kind:"combatSpot",x:640,y:370,label:"Bell-Rats",enemy:"bell_rat_swarm",title:"Bell-Rat Swarm",desc:"Small bodies, many teeth."},
-  {id:"pilgrim",type:"combat",kind:"combatSpot",x:790,y:325,label:"Pilgrim",enemy:"hollow_pilgrim",title:"Hollow Pilgrim",desc:"A curse-user. Letting the fight drag will poison your deck."},
-  {id:"camp",type:"camp",kind:"campSpot",x:930,y:455,label:"Campfire",title:"Campfire",desc:"Rest or refine your deck."},
-  {id:"thief",type:"combat",kind:"eliteSpot",x:1085,y:345,label:"Candle Thief",enemy:"candle_thief",title:"Elite: Candle Thief",desc:"A tempo thief. It drains energy and punishes slow hands."},
-  {id:"knight",type:"combat",kind:"eliteSpot",x:1225,y:420,label:"Bell Knight",enemy:"bell_knight",title:"Elite: Bell Knight",desc:"Armor, Frail, and delayed punishment."},
-  {id:"boss",type:"combat",kind:"bossSpot",x:1400,y:395,label:"Belfry Gate",enemy:"bell_mother",title:"Boss: The Bell Mother",desc:"The parish ends where the bells begin."}
-];
+const NODE_TYPES = ["combat","elite","event","rest","shop","treasure"];
+const NODE_ICONS = {combat:"⚔", elite:"💀", event:"?", rest:"✦", shop:"⚖", treasure:"◆", boss:"👁"};
+const NODE_RISK = {
+  combat:"Reward: card choice + echoes.",
+  elite:"High risk. Reward: relic + echoes.",
+  event:"Uncertain omen. Risk and reward shift with your choice.",
+  rest:"Recover or refine at a sanctuary.",
+  shop:"Spend echoes on power.",
+  treasure:"Reward: relic, gold, or a rare memory.",
+  boss:"Act end. The watcher at the gate opens its eye."
+};
+const NODE_FLAVOR = {
+  combat:[
+    {title:"Ash Patrol", description:"A hollow patrol bars the ash road."},
+    {title:"Broken Spearmen", description:"Jagged ranks gather beneath dead banners."},
+    {title:"Lanternless Road", description:"Shapes move where no light should reach."},
+    {title:"Bone Toll", description:"The road demands blood for passage."}
+  ],
+  elite:[
+    {title:"The Marked Hunter", description:"A marked hunter waits between ruined stones."},
+    {title:"Grave-Knight Remnant", description:"A plated revenant drags a bell-chain."},
+    {title:"Bell-Ringer of the Hollow", description:"Each toll sharpens the dark around you."}
+  ],
+  event:[
+    {title:"A Whisper Beneath Stone", description:"An old vow speaks through cracked slate."},
+    {title:"The Crooked Shrine", description:"Incense burns with no fire to feed it."},
+    {title:"A Door With No Wall", description:"The threshold waits where no room remains."}
+  ],
+  rest:[
+    {title:"Quiet Lantern", description:"A quiet shrine hums beneath dead lanterns."},
+    {title:"Ashen Sanctuary", description:"For one breath, the bells seem distant."},
+    {title:"The Last Warmth", description:"Heat survives in a circle of soot."}
+  ],
+  treasure:[
+    {title:"Sealed Reliquary", description:"A sealed reliquary pulses beneath old dust."},
+    {title:"Buried Offering", description:"Coins and bone charms wait under cinders."},
+    {title:"Blackened Casket", description:"A locked casket leaks dim gold light."}
+  ],
+  shop:[
+    {title:"Veiled Merchant", description:"A veiled merchant offers forbidden tools."},
+    {title:"Market of Teeth", description:"Price tags are carved into old enamel."},
+    {title:"The Debt Keeper", description:"A ledger opens itself to your name."}
+  ],
+  boss:[
+    {title:"The Gate That Watches", description:"The watcher at the gate opens its eye."},
+    {title:"Saint of the Hollow Eye", description:"A saint-statue stirs and looks back."},
+    {title:"Ashfall Warden", description:"The final bell tolls from inside armor."}
+  ]
+};
 
-const pilgrimageSpots = [
-  {id:"well",type:"event",kind:"eventSpot",x:150,y:395,label:"Weeping Well",title:"The Weeping Well",desc:"The water whispers your name, then says it wrong."},
-  {id:"pilgrim_hunt",type:"combat",kind:"combatSpot",x:320,y:350,label:"Ash Hound",enemy:"ash_hound",title:"Ash Hound",desc:"The old roads are less forgiving now."},
-  {id:"memory_shop",type:"shop",kind:"shopSpot",x:520,y:430,label:"Marl",title:"Marl's Pack",desc:"He remembers your first lie and charges extra for it."},
-  {id:"candle_girl",type:"event",kind:"eventSpot",x:690,y:390,label:"Candle Girl",title:"The Candle Girl",desc:"A faceless child offers flame and asks for blood."},
-  {id:"knight_echo",type:"combat",kind:"eliteSpot",x:850,y:340,label:"Bell Knight",enemy:"bell_knight",title:"Echo Knight",desc:"An armored memory with no mercy."},
-  {id:"rest",type:"camp",kind:"campSpot",x:1040,y:450,label:"Campfire",title:"Campfire",desc:"Rest while the bells stay quiet."},
-  {id:"thief_echo",type:"combat",kind:"eliteSpot",x:1220,y:345,label:"Candle Thief",enemy:"candle_thief",title:"Echo Thief",desc:"Still stealing tempo after death."},
-  {id:"boss_true",type:"combat",kind:"bossSpot",x:1420,y:390,label:"Bell Mother",enemy:"bell_mother",title:"Boss: The Bell Mother",desc:"This time, the Hollow is awake."}
-];
+function hydrateSave(){
+  S.selectedNodeId = S.selectedNodeId || null;
+  S.mapEncounter = S.mapEncounter || null;
+  S.pendingNodeCompletion = S.pendingNodeCompletion || null;
+  if(!S.map || !Array.isArray(S.map.nodes) || !S.map.nodes.length){
+    S.map = generateRunMap();
+  }
+  S.map.visited = Array.isArray(S.map.visited) ? S.map.visited : [];
+  S.map.step = Number.isFinite(S.map.step) ? S.map.step : 0;
+  S.map.currentNodeId = S.map.currentNodeId || null;
+  S.map.pathHistory = Array.isArray(S.map.pathHistory) ? S.map.pathHistory : [];
+}
 
-function activeSpots(){
-  return S.truePilgrimage ? pilgrimageSpots : parishSpots;
+function createNode(id, step, lane, type){
+  const flavor = pick(NODE_FLAVOR[type]);
+  return {
+    id, step, lane, type,
+    title: flavor.title,
+    description: flavor.description,
+    links: [],
+    completed: false
+  };
+}
+
+function weightedNodeType(step, maxSteps){
+  const roll = Math.random();
+  if(step < 2) return roll < 0.7 ? "combat" : "event";
+  if(step === maxSteps - 2) return roll < 0.5 ? "elite" : "rest";
+  if(roll < 0.45) return "combat";
+  if(roll < 0.58) return "event";
+  if(roll < 0.71) return "shop";
+  if(roll < 0.86) return "rest";
+  if(roll < 0.95) return "treasure";
+  return "elite";
+}
+
+function generateRunMap(){
+  const stepsBeforeBoss = 12 + Math.floor(Math.random() * 3);
+  const nodesByStep = [];
+  let idCounter = 0;
+  for(let step = 0; step < stepsBeforeBoss; step++){
+    const count = step === 0 ? 2 : 1 + Math.floor(Math.random() * 4);
+    const row = [];
+    for(let lane = 0; lane < count; lane++){
+      row.push(createNode(`n_${idCounter++}`, step, lane, weightedNodeType(step, stepsBeforeBoss)));
+    }
+    nodesByStep.push(row);
+  }
+  const bossStep = stepsBeforeBoss;
+  nodesByStep.push([createNode(`n_${idCounter++}`, bossStep, 0, "boss")]);
+  const allNodes = nodesByStep.flat();
+  for(let step = 0; step < bossStep; step++){
+    const current = allNodes.filter((node)=>node.step === step);
+    const next = allNodes.filter((node)=>node.step === step + 1);
+    current.forEach((node, i)=>{
+      const direct = Math.min(next.length - 1, Math.round((i / Math.max(1, current.length - 1)) * (next.length - 1)));
+      const neighbors = [direct, direct - 1, direct + 1].filter((n)=>n >= 0 && n < next.length);
+      shuffle(neighbors).slice(0, Math.min(2, neighbors.length)).forEach((idx)=>node.links.push(next[idx].id));
+      if(!node.links.length && next.length) node.links.push(next[direct].id);
+      node.links = [...new Set(node.links)];
+    });
+  }
+  return { nodes:allNodes, currentNodeId:null, visited:[], step:0, pathHistory:[], selectedNodeId:null, act:1 };
+}
+
+function nodeById(nodeId){
+  return S.map.nodes.find((node)=>node.id === nodeId);
+}
+
+function reachableNodeIds(){
+  if(!S.map.currentNodeId) return S.map.nodes.filter((n)=>n.step === 0).map((n)=>n.id);
+  const current = nodeById(S.map.currentNodeId);
+  return current?.links || [];
+}
+
+function isNodeReachable(node){
+  if(!node || node.completed) return false;
+  return reachableNodeIds().includes(node.id);
+}
+
+function mapTypeLabel(type){
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function mapRows(){
+  const steps = Math.max(...S.map.nodes.map((n)=>n.step));
+  const rows = [];
+  for(let step=0; step<=steps; step++){
+    rows.push(S.map.nodes.filter((n)=>n.step===step).sort((a,b)=>a.lane-b.lane));
+  }
+  return rows;
+}
+
+function nodeClass(node){
+  const reachable = isNodeReachable(node);
+  const selected = S.selectedNodeId === node.id;
+  const visited = S.map.visited.includes(node.id);
+  const current = S.map.currentNodeId === node.id;
+  return ["map-node", `node-${node.type}`, reachable ? "reachable" : "locked", visited ? "visited" : "", current ? "current" : "", selected ? "selected" : ""].filter(Boolean).join(" ");
 }
 
 function drawWorld(){
-  currentSpot = null;
   S.combat = null;
-  const spots = activeSpots();
-  G.innerHTML = `<div class="screen">
+  hydrateSave();
+  const rows = mapRows();
+  const selectedNode = nodeById(S.selectedNodeId);
+  const selectedReachable = isNodeReachable(selectedNode);
+  const pathTaken = S.map.pathHistory.length ? S.map.pathHistory.join(" → ") : "None yet";
+  G.innerHTML = `<div class="screen map-screen">
     <div class="top">
-      <div><div class="logo">${S.truePilgrimage ? "THE HOLLOW ROAD" : "BELLGRAVE PARISH"}</div><div class="small">Move near a location, then Interact.</div></div>
+      <div><div class="logo">ACT ${S.map.act || 1}: THE HOLLOW ROAD</div><div class="small">Choose connected routes through the ash.</div></div>
       <div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill">${S.gold}g</span></div>
     </div>
-    <div class="world">
-      <div class="parallax"></div><div class="skyline"></div><div class="ground"></div>
-      <div class="zone-label">${S.truePilgrimage ? "The bells remember your first victory." : "The bells toll for the lost."}</div>
-      ${spots.map(s=>`<div class="hotspot ${s.kind} ${S.cleared[s.id] && s.type !== "shop" && s.type !== "camp" ? "cleared":""}" id="spot-${s.id}" style="left:${s.x-S.zone}px;top:${s.y}px">${s.label}</div>`).join("")}
-      <div class="player" id="player" style="left:${S.x}px;top:${S.y}px">
-        <div class="cloak"></div><div class="head"></div><div class="body"></div><div class="lamp"></div><div class="blade"></div>
+    <div class="map-layout">
+      <div class="map-scroll" id="mapScroll">
+        <div class="map-grid">
+          ${rows.map((row, idx)=>`<div class="map-step-row"><div class="map-step-label">Step ${idx + 1}</div><div class="map-step-nodes">
+            ${row.map((node)=>`<button id="map-${node.id}" class="${nodeClass(node)}" onclick="selectMapNode('${node.id}')"><span class="icon">${NODE_ICONS[node.type]}</span><span>${node.title}</span></button>`).join("")}
+          </div></div>`).join("")}
+        </div>
+      </div>
+      <div class="map-preview panel">
+        ${selectedNode ? `
+          <h3>${NODE_ICONS[selectedNode.type]} ${selectedNode.title}</h3>
+          <p><b>${mapTypeLabel(selectedNode.type)}</b> · ${selectedNode.description}</p>
+          <p class="small">${NODE_RISK[selectedNode.type]}</p>
+          ${selectedReachable ? `<button onclick="enterSelectedNode()">Enter</button>` : `<div class="locked-msg">Locked: follow connected routes from your current position.</div>`}
+        ` : `<h3>Choose a node</h3><p>Select a reachable route node to preview risk and reward.</p>`}
+        <hr>
+        <p class="small"><b>Path Taken:</b> ${pathTaken}</p>
       </div>
     </div>
-    <div id="prompt"></div>
     <div class="controls">
       <div class="actionbar">
-        <button onclick="saveGame()">Save</button><button onclick="showDeck()">Deck</button><button onclick="showCodex()">Codex</button><button onclick="quest()">Quest</button><button id="interactBtn" onclick="doInteract()" disabled>Interact</button>
-      </div>
-      <div class="joy">
-        <button class="up" ontouchstart="hold(0,-1)" onmousedown="hold(0,-1)" ontouchend="stop()" onmouseup="stop()">▲</button>
-        <button class="left" ontouchstart="hold(-1,0)" onmousedown="hold(-1,0)" ontouchend="stop()" onmouseup="stop()">◀</button>
-        <button class="right" ontouchstart="hold(1,0)" onmousedown="hold(1,0)" ontouchend="stop()" onmouseup="stop()">▶</button>
-        <button class="down" ontouchstart="hold(0,1)" onmousedown="hold(0,1)" ontouchend="stop()" onmouseup="stop()">▼</button>
+        <button onclick="saveGame()">Save</button><button onclick="showDeck()">Deck</button><button onclick="showCodex()">Codex</button><button onclick="quest()">Quest</button>
       </div>
     </div>
   </div>`;
-  checkNear();
+  document.getElementById("mapScroll")?.scrollTo({top:99999, behavior:"smooth"});
 }
 
-function hold(dx,dy){
-  stop();
-  document.getElementById("player")?.classList.add("walk");
-  timer = setInterval(()=>move(dx,dy), 35);
+function selectMapNode(nodeId){
+  S.selectedNodeId = nodeId;
+  drawWorld();
 }
-function stop(){
-  if(timer) clearInterval(timer);
-  timer = null;
-  document.getElementById("player")?.classList.remove("walk");
+
+function pickEnemyForNode(type){
+  const enemies = Object.entries(DB.enemies);
+  const bosses = enemies.filter(([, enemy])=>enemy.boss).map(([id])=>id);
+  const elites = enemies.filter(([, enemy])=>enemy.elite).map(([id])=>id);
+  const regular = enemies.filter(([, enemy])=>!enemy.elite && !enemy.boss).map(([id])=>id);
+  if(type === "boss") return pick(bosses);
+  if(type === "elite") return pick(elites.length ? elites : regular);
+  return pick(regular.length ? regular : enemies.map(([id])=>id));
 }
-function move(dx,dy){
-  const maxZone = Math.max(...activeSpots().map((s)=>s.x)) - 380;
-  S.x += dx * 8; S.y += dy * 6;
-  if(S.x > innerWidth - 90 && S.zone < maxZone){ S.zone += 12; S.x -= 12; }
-  if(S.x < 42 && S.zone > 0){ S.zone -= 12; S.x += 12; }
-  S.x = Math.min(Math.max(S.x, 10), innerWidth - 58);
-  S.y = Math.min(Math.max(S.y, 92), innerHeight - 220);
-  const p = document.getElementById("player");
-  if(p){ p.style.left = S.x + "px"; p.style.top = S.y + "px"; }
-  activeSpots().forEach(s=>{ const el = document.getElementById("spot-"+s.id); if(el) el.style.left = (s.x-S.zone)+"px"; });
-  checkNear();
-}
-function checkNear(){
-  currentSpot = null;
-  const p = {x:S.x+22, y:S.y+34};
-  for(const s of activeSpots()){
-    if(S.cleared[s.id] && s.type !== "shop" && s.type !== "camp") continue;
-    const sx = s.x - S.zone + 35, sy = s.y + 22;
-    if(Math.abs(p.x-sx)<64 && Math.abs(p.y-sy)<58){ currentSpot=s; break; }
+
+function enterSelectedNode(){
+  const node = nodeById(S.selectedNodeId);
+  if(!node || !isNodeReachable(node)) return toast("That route is not reachable yet.");
+  S.mapEncounter = { nodeId:node.id, type:node.type };
+  if(["combat","elite","boss"].includes(node.type)) return startCombat(pickEnemyForNode(node.type), node.id);
+  if(node.type === "event"){
+    runEvent(pick(["grave","well","candle_girl"]));
+    return completeCurrentNode({ nodeId:node.id, text:"Omen answered." });
   }
-  const box = document.getElementById("prompt"), btn = document.getElementById("interactBtn");
-  if(!box || !btn) return;
-  if(currentSpot){
-    box.innerHTML = `<div class="prompt"><h3>${currentSpot.title}</h3><p>${currentSpot.desc}</p></div>`;
-    btn.disabled = false;
-  } else {
-    box.innerHTML = ""; btn.disabled = true;
+  if(node.type === "rest"){
+    return modal("Quiet Lantern", `<p>Recover 24 HP or refine a basic card.</p>
+      <button onclick="S.hp=Math.min(S.maxHp,S.hp+24);document.querySelector('.modal').remove();completeCurrentNode({nodeId:'${node.id}',text:'Rested at sanctuary.'});drawWorld();">Rest</button>
+      <button onclick="upgradeAtCamp();completeCurrentNode({nodeId:'${node.id}',text:'Refined at sanctuary.'});">Refine</button>`);
+  }
+  if(node.type === "treasure"){
+    S.gold += 75;
+    const relic = pick(Object.keys(DB.relics));
+    if(!S.relics.includes(relic)) S.relics.push(relic);
+    toast(`Treasure found: +75g and ${DB.relics[relic].name}.`);
+    completeCurrentNode({ nodeId:node.id, text:`Claimed ${node.title}.` });
+    return drawWorld();
+  }
+  if(node.type === "shop"){
+    return mapShop(node.id);
   }
 }
-function doInteract(){
-  if(!currentSpot) return;
-  const s = currentSpot; stop();
-  if(s.type==="combat"){ S.cleared[s.id]=true; return startCombat(s.enemy); }
-  if(s.type==="event"){ S.cleared[s.id]=true; return runEvent(s.id); }
-  if(s.type==="shop") return shop();
-  if(s.type==="camp") return camp();
+
+function completeCurrentNode(result = {}){
+  const nodeId = result.nodeId || S.mapEncounter?.nodeId || S.pendingNodeCompletion;
+  const node = nodeById(nodeId);
+  if(!node) return;
+  node.completed = true;
+  S.map.currentNodeId = node.id;
+  if(!S.map.visited.includes(node.id)) S.map.visited.push(node.id);
+  S.map.step = Math.max(S.map.step, node.step + 1);
+  S.map.pathHistory.push(`${node.title} (${mapTypeLabel(node.type)})`);
+  S.pendingNodeCompletion = null;
+  S.mapEncounter = null;
+  if(node.type === "boss"){
+    cutscene("Act Cleared", "The gate falls silent. You have survived Act 1.", ()=>{
+      S.hp = Math.min(S.maxHp, S.hp + 18);
+      drawWorld();
+      toast("Act Cleared.");
+    });
+    return;
+  }
 }
+
 function cutscene(title, body, cb){
   G.innerHTML = `<div class="cutscene"><div class="cutbox"><h2>${title}</h2><p>${body}</p><button id="nxt">Continue</button></div></div>`;
   document.getElementById("nxt").onclick = cb;
@@ -275,53 +430,59 @@ function showDeck(){
   modal("Deck", `<p>${S.deck.length} cards</p>${Object.entries(counts).map(([id,n])=>`<p><b>${DB.cards[id].name}</b> x${n}<br><span class="small">${DB.cards[id].text}</span></p>`).join("")}`);
 }
 function showCodex(){
-  modal("Codex", `<p><b>Relics:</b> ${S.relics.map(id=>DB.relics[id].name).join(", ")}</p><p><b>Kills:</b> ${S.kills}</p><p><b>Deaths:</b> ${S.deaths}</p><p><b>False Ending:</b> ${S.falseEnding ? "Unlocked" : "Not yet"}</p><p><b>Direction:</b> World traversal is flavor. Combat is the real game.</p>`);
+  modal("Codex", `<p><b>Relics:</b> ${S.relics.map(id=>DB.relics[id].name).join(", ")}</p><p><b>Kills:</b> ${S.kills}</p><p><b>Deaths:</b> ${S.deaths}</p><p><b>False Ending:</b> ${S.falseEnding ? "Unlocked" : "Not yet"}</p><p><b>Direction:</b> Route choice is now the spine of each run.</p>`);
 }
 function quest(){
-  toast(S.falseEnding ? "The Hollow remembers. Future branches unlock true endings." : "Reach the Belfry Gate. The first victory is a lie.");
-}
-function eventGrave(){
-  const has = S.memories.length;
-  const body = has ? `<p>A grave waits with one of your lost memories: <b>${DB.cards[S.memories[has-1]].name}</b>.</p><button onclick="takeMemory()">Take it back</button> <button onclick="buryMemory()">Bury it for healing</button>` : `<p>A grave waits with your name scratched out. You find 35 gold and a bad feeling.</p><button onclick="S.gold+=35;drawWorld()">Take Gold</button>`;
-  G.innerHTML = `<div class="modal"><div class="modalbox"><h2>Grave of Yourself</h2>${body}</div></div>`;
+  toast("Choose your path carefully. Boss waits at the final step.");
 }
 function runEvent(eventId){
-  if(eventId === "grave") return eventGrave();
+  if(eventId === "grave"){
+    modal("Grave of Yourself", `<p>The ash remembers your name.</p><button onclick="S.gold+=35;document.querySelector('.modal').remove();drawWorld();">Take Gold</button>`);
+    return;
+  }
   if(eventId === "well"){
-    return G.innerHTML = `<div class="modal"><div class="modalbox"><h2>The Weeping Well</h2><p>The water reflects a face you almost remember.</p><button onclick="S.hp=Math.min(S.maxHp,S.hp+18);drawWorld();toast('You drink. +18 HP.')">Drink</button> <button onclick="S.deck.push('lantern_step');drawWorld();toast('You recover a Lantern Step memory.')">Listen</button> <button onclick="drawWorld()">Leave</button></div></div>`;
+    modal("The Weeping Well", `<p>The water reflects a face you almost remember.</p><button onclick="S.hp=Math.min(S.maxHp,S.hp+18);document.querySelector('.modal').remove();drawWorld();toast('You drink. +18 HP.')">Drink</button>`);
+    return;
   }
   if(eventId === "candle_girl"){
-    return G.innerHTML = `<div class="modal"><div class="modalbox"><h2>The Candle Girl</h2><p>She tilts the candle toward your chest-lantern and waits.</p><button onclick="S.hp=Math.max(1,S.hp-6);S.deck.push('blood_pact');drawWorld();toast('Paid blood for power.')">Accept Bargain</button> <button onclick="S.gold+=40;drawWorld();toast('You walk away richer, and colder.')">Refuse</button></div></div>`;
+    modal("The Candle Girl", `<p>A faceless child offers flame and asks for blood.</p><button onclick="S.hp=Math.max(1,S.hp-6);S.deck.push('blood_pact');document.querySelector('.modal').remove();drawWorld();">Accept Bargain</button>`);
+    return;
   }
   const ev = (DB.events || []).find((e)=>e.id===eventId);
   return cutscene(ev?.title || "Strange Memory", ev?.desc || "The Hollow shifts around you.", drawWorld);
 }
-function takeMemory(){ S.deck.push(S.memories.pop()); drawWorld(); toast("Memory returned to deck."); }
-function buryMemory(){ S.memories.pop(); S.hp=Math.min(S.maxHp,S.hp+20); drawWorld(); toast("You bury the memory. +20 HP."); }
 function shop(){
-  const opts = ["heavy_cut","blood_pact","hollow_bind","counter_bell","twin_strike","serrated_cut","lantern_step"];
-  modal("Marl, Keeper of Things Not Yet Lost", `<p>"Buy now. Regret later. That is the honest order."</p><p>Gold: ${S.gold}</p><div class="reward-grid">${opts.map(id=>`<button onclick="buyCard('${id}',60)"><b>${DB.cards[id].name}</b> — 60g<br><span class="small">${DB.cards[id].text}</span></button>`).join("")}<button onclick="removeBasic()">Remove Strike/Guard — 75g</button></div>`);
+  return mapShop(S.mapEncounter?.nodeId);
 }
-function buyCard(id,cost){ if(S.gold<cost) return toast("Not enough gold."); S.gold-=cost; S.deck.push(id); document.querySelector(".modal").remove(); shop(); }
+function mapShop(nodeId){
+  const opts = ["heavy_cut","blood_pact","hollow_bind","counter_bell","twin_strike","serrated_cut","lantern_step"];
+  modal("Veiled Merchant", `<p>"Buy now. Regret later."</p><p>Gold: ${S.gold}</p>
+    <div class="reward-grid">${opts.map(id=>`<button onclick="buyCard('${id}',60)"><b>${DB.cards[id].name}</b> — 60g</button>`).join("")}</div>
+    <button onclick="removeBasic()">Remove Strike/Guard — 75g</button>
+    <button onclick="document.querySelector('.modal').remove();completeCurrentNode({nodeId:'${nodeId}',text:'Left the merchant.'});drawWorld();">Leave Shop</button>`);
+}
+function buyCard(id,cost){ if(S.gold<cost) return toast("Not enough gold."); S.gold-=cost; S.deck.push(id); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
 function removeBasic(){
   if(S.gold<75) return toast("Not enough gold.");
   const i = S.deck.findIndex(id=>id==="strike"||id==="guard");
-  if(i>=0){ S.gold-=75; S.deck.splice(i,1); toast("A basic memory is removed."); document.querySelector(".modal").remove(); shop(); }
+  if(i>=0){ S.gold-=75; S.deck.splice(i,1); toast("A basic memory is removed."); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
   else toast("No Strike/Guard found.");
 }
 function camp(){
-  modal("Campfire", `<p>A small flame survives inside a ring of dead bells.</p><button onclick="S.hp=Math.min(S.maxHp,S.hp+24);document.querySelector('.modal').remove();drawWorld();toast('Rested +24 HP.')">Rest</button><button onclick="upgradeAtCamp()">Refine: remove Strike/Guard</button>`);
+  modal("Quiet Lantern", `<p>Recover or refine.</p><button onclick="S.hp=Math.min(S.maxHp,S.hp+24);document.querySelector('.modal').remove();drawWorld();">Rest</button><button onclick="upgradeAtCamp()">Refine</button>`);
 }
 function upgradeAtCamp(){
   const i = S.deck.findIndex(id=>id==="strike"||id==="guard");
-  if(i>=0){ S.deck.splice(i,1); document.querySelector(".modal").remove(); drawWorld(); toast("You refine your deck."); }
+  if(i>=0){ S.deck.splice(i,1); document.querySelector(".modal")?.remove(); toast("You refine your deck."); drawWorld(); }
   else toast("Nothing basic to refine.");
 }
 
-function startCombat(enemyId){
+function startCombat(enemyId, nodeId = null){
   const e = clone(DB.enemies[enemyId]);
+  if(!e) throw new Error(`Unknown enemy: ${enemyId}`);
   if(S.truePilgrimage) e.hp = Math.floor(e.hp * 1.3);
   e.maxHp = e.hp; e.turn = 0; e.block = 0; e.status = {};
+  S.pendingNodeCompletion = nodeId;
   const deck = S.deck.slice();
   if(S.relics.includes("hollow_crown")) deck.push(...DB.relics.hollow_crown.curses);
   S.combat = {
@@ -656,33 +817,41 @@ async function endTurn(){
 }
 function victory(){
   const E = S.combat.enemy, boss = E.boss;
+  const completionNode = S.pendingNodeCompletion;
   S.kills++; S.gold += E.elite ? 65 : boss ? 100 : 30;
   S.combat = null;
-  if(boss){
-    if(S.falseEnding){
-      return cutscene("True Ending: The Bell That Remembers", "The Bell Mother falls twice. A final bell answers from below the world. The Hollow opens, and your pilgrimage begins for real.", ()=>{
-        S.truePilgrimage = false;
-        S.hp = S.maxHp;
-        S.gold += 250;
-        S.deck.push("bone_splitter");
-        drawWorld();
-        toast("True ending unlocked. New run boon: Bone Splitter.");
-      });
+  if(completionNode){
+    if(boss){
+      completeCurrentNode({ nodeId:completionNode, text:"Boss defeated." });
+      return;
     }
-    return cutscene("Ending Achieved: The Ash Lie", "The Bell Mother falls. Every bell drops at once. None make a sound. The ash stops. You think the world is saved. Then one tiny bell moves.", ()=>{
-      S.falseEnding = true; S.truePilgrimage = true; S.hp = S.maxHp;
-      S.deck.push("hollow_bind","lantern_light","blood_pact");
-      drawWorld(); toast("True Pilgrimage flag unlocked.");
-    });
+    const pool = Object.keys(DB.cards).filter(id=>!["Basic","Curse"].includes(DB.cards[id].rarity));
+    pendingVictoryRewards = { nodeId:completionNode };
+    const picks = shuffle(pool).slice(0,3);
+    G.innerHTML = `<div class="modal"><div class="modalbox"><h2>Victory</h2><p>You gain gold. Choose one memory.</p><div class="reward-grid">${picks.map(id=>`<button onclick="takeReward('${id}')"><b>${DB.cards[id].name}</b><br><span class="small">${DB.cards[id].text}</span></button>`).join("")}<button onclick="skipReward()">Skip Card</button></div></div></div>`;
+    return;
   }
-  const pool = Object.keys(DB.cards).filter(id=>!["Basic","Curse"].includes(DB.cards[id].rarity));
-  const picks = shuffle(pool).slice(0,3);
-  G.innerHTML = `<div class="modal"><div class="modalbox"><h2>Victory</h2><p>You gain gold. Choose one memory.</p><div class="reward-grid">${picks.map(id=>`<button onclick="takeReward('${id}')"><b>${DB.cards[id].name}</b><br><span class="small">${DB.cards[id].text}</span></button>`).join("")}<button onclick="drawWorld()">Skip Card</button></div></div></div>`;
+  drawWorld();
 }
-function takeReward(id){ S.deck.push(id); drawWorld(); toast(`${DB.cards[id].name} added.`); }
+function takeReward(id){
+  S.deck.push(id);
+  toast(`${DB.cards[id].name} added.`);
+  const nodeId = pendingVictoryRewards?.nodeId;
+  pendingVictoryRewards = null;
+  completeCurrentNode({ nodeId, text:"Won battle." });
+  drawWorld();
+}
+function skipReward(){
+  const nodeId = pendingVictoryRewards?.nodeId;
+  pendingVictoryRewards = null;
+  completeCurrentNode({ nodeId, text:"Won battle." });
+  drawWorld();
+}
 function death(){
   const mem = pick(S.deck);
   S.memories.push(mem); S.deaths++; S.hp = S.maxHp; S.combat = null;
+  S.pendingNodeCompletion = null;
+  S.mapEncounter = null;
   cutscene("You Died", `The lantern drops. The Hollow preserves one memory: ${DB.cards[mem].name}.`, drawWorld);
 }
 function showCombatLog(){
