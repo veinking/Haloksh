@@ -1,0 +1,10 @@
+{
+  "name": "Ashfall: Echoes of the Hollow",
+  "short_name": "Ashfall",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#070605",
+  "theme_color": "#070605",
+  "icons": []
+}

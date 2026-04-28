@@ -1,0 +1,384 @@
+{
+  "strike": {
+    "name": "Strike",
+    "type": "Attack",
+    "cost": 1,
+    "rarity": "Basic",
+    "tags": [
+      "Blade"
+    ],
+    "text": "Deal 6 damage.",
+    "damage": 6
+  },
+  "guard": {
+    "name": "Guard",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Basic",
+    "tags": [
+      "Guard"
+    ],
+    "text": "Gain 5 Block.",
+    "block": 5
+  },
+  "quick_slash": {
+    "name": "Quick Slash",
+    "type": "Attack",
+    "cost": 1,
+    "rarity": "Common",
+    "tags": [
+      "Blade"
+    ],
+    "text": "Deal 8 damage.",
+    "damage": 8
+  },
+  "heavy_cut": {
+    "name": "Heavy Cut",
+    "type": "Attack",
+    "cost": 2,
+    "rarity": "Common",
+    "tags": [
+      "Blade"
+    ],
+    "text": "Deal 15 damage.",
+    "damage": 15
+  },
+  "twin_strike": {
+    "name": "Twin Strike",
+    "type": "Attack",
+    "cost": 1,
+    "rarity": "Common",
+    "tags": [
+      "Blade",
+      "MultiHit"
+    ],
+    "text": "Deal 4 damage twice.",
+    "damage": 4,
+    "hits": 2
+  },
+  "serrated_cut": {
+    "name": "Serrated Cut",
+    "type": "Attack",
+    "cost": 1,
+    "rarity": "Common",
+    "tags": [
+      "Blade",
+      "Bleed"
+    ],
+    "text": "Deal 6 damage. Apply 2 Bleed.",
+    "damage": 6,
+    "apply": {
+      "Bleed": 2
+    }
+  },
+  "grave_cleave": {
+    "name": "Grave Cleave",
+    "type": "Attack",
+    "cost": 2,
+    "rarity": "Uncommon",
+    "tags": [
+      "Blade",
+      "Bleed"
+    ],
+    "text": "Deal 13. If enemy has Bleed, gain 1 Energy.",
+    "damage": 13,
+    "energyIfEnemyStatus": "Bleed"
+  },
+  "bone_splitter": {
+    "name": "Bone Splitter",
+    "type": "Attack",
+    "cost": 3,
+    "rarity": "Rare",
+    "tags": [
+      "Blade"
+    ],
+    "text": "Deal 30 damage.",
+    "damage": 30
+  },
+  "brace": {
+    "name": "Brace",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Common",
+    "tags": [
+      "Guard"
+    ],
+    "text": "Gain 9 Block.",
+    "block": 9
+  },
+  "ashen_guard": {
+    "name": "Ashen Guard",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Common",
+    "tags": [
+      "Guard",
+      "Curse"
+    ],
+    "text": "Gain 8 Block. If a Curse is in hand, gain +4.",
+    "block": 8,
+    "bonusBlockIfCurse": 4
+  },
+  "counter_bell": {
+    "name": "Counter Bell",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Guard",
+      "Counter"
+    ],
+    "text": "Gain 6 Block. Reflect 6 next time hit this turn.",
+    "block": 6,
+    "counter": 6
+  },
+  "iron_prayer": {
+    "name": "Iron Prayer",
+    "type": "Skill",
+    "cost": 2,
+    "rarity": "Common",
+    "tags": [
+      "Guard"
+    ],
+    "text": "Gain 17 Block.",
+    "block": 17
+  },
+  "fortify": {
+    "name": "Fortify",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Guard"
+    ],
+    "text": "Gain 6 Fortify. Fortify carries over one turn.",
+    "fortify": 6
+  },
+  "open_vein": {
+    "name": "Open Vein",
+    "type": "Skill",
+    "cost": 0,
+    "rarity": "Basic",
+    "tags": [
+      "Blood"
+    ],
+    "text": "Lose 3 HP. Gain 1 Energy.",
+    "selfDamage": 3,
+    "gainEnergy": 1
+  },
+  "blood_pact": {
+    "name": "Blood Pact",
+    "type": "Skill",
+    "cost": 0,
+    "rarity": "Uncommon",
+    "tags": [
+      "Blood"
+    ],
+    "text": "Lose 5 HP. Gain 2 Energy.",
+    "selfDamage": 5,
+    "gainEnergy": 2
+  },
+  "red_carve": {
+    "name": "Red Carve",
+    "type": "Attack",
+    "cost": 1,
+    "rarity": "Basic",
+    "tags": [
+      "Blood",
+      "Blade"
+    ],
+    "text": "Deal 9. If you lost HP this turn, deal +6.",
+    "damage": 9,
+    "bonusIfSelfDamaged": 6
+  },
+  "pain_dividend": {
+    "name": "Pain Dividend",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Blood",
+      "Draw"
+    ],
+    "text": "Lose 3 HP. Draw 2.",
+    "selfDamage": 3,
+    "draw": 2
+  },
+  "last_pulse": {
+    "name": "Last Pulse",
+    "type": "Attack",
+    "cost": 2,
+    "rarity": "Rare",
+    "tags": [
+      "Blood"
+    ],
+    "text": "Deal 18. If below 50% HP, deal +12.",
+    "damage": 18,
+    "bonusIfLowHp": 12
+  },
+  "lantern_step": {
+    "name": "Lantern Step",
+    "type": "Skill",
+    "cost": 0,
+    "rarity": "Common",
+    "tags": [
+      "Lantern",
+      "Draw"
+    ],
+    "text": "Gain 3 Block. Draw 1. Exhaust.",
+    "block": 3,
+    "draw": 1,
+    "exhaust": true
+  },
+  "old_technique": {
+    "name": "Old Technique",
+    "type": "Skill",
+    "cost": 0,
+    "rarity": "Basic",
+    "tags": [
+      "Blade"
+    ],
+    "text": "Next Attack deals +5. Exhaust.",
+    "nextAttackBonus": 5,
+    "exhaust": true
+  },
+  "lantern_light": {
+    "name": "Lantern Light",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Lantern"
+    ],
+    "text": "Gain 5 Block and 1 Strength.",
+    "block": 5,
+    "playerStatus": {
+      "Strength": 1
+    }
+  },
+  "burn_the_past": {
+    "name": "Burn the Past",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Lantern",
+      "Exhaust",
+      "Draw"
+    ],
+    "text": "Exhaust a random card in hand. Draw 2.",
+    "exhaustRandomHand": 1,
+    "draw": 2
+  },
+  "memory_wick": {
+    "name": "Memory Wick",
+    "type": "Power",
+    "cost": 1,
+    "rarity": "Rare",
+    "tags": [
+      "Lantern",
+      "Power"
+    ],
+    "text": "Whenever you Exhaust a card, deal 3 damage to a random enemy.",
+    "power": "exhaust_damage"
+  },
+  "hollow_bind": {
+    "name": "Hollow Bind",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Curse",
+      "Control"
+    ],
+    "text": "Apply 2 Weak. Add Dissonance to discard.",
+    "apply": {
+      "Weak": 2
+    },
+    "addDiscard": "dissonance"
+  },
+  "dissonant_hymn": {
+    "name": "Dissonant Hymn",
+    "type": "Skill",
+    "cost": 2,
+    "rarity": "Rare",
+    "tags": [
+      "Curse",
+      "Control"
+    ],
+    "text": "Apply 3 Weak to enemy. Add 2 Dissonance to draw pile.",
+    "apply": {
+      "Weak": 3
+    },
+    "addDraw": [
+      "dissonance",
+      "dissonance"
+    ]
+  },
+  "rot_bloom": {
+    "name": "Rot Bloom",
+    "type": "Attack",
+    "cost": 1,
+    "rarity": "Rare",
+    "tags": [
+      "Root",
+      "Curse"
+    ],
+    "text": "Add Rot. Deal 18 damage.",
+    "addDiscard": "rot",
+    "damage": 18
+  },
+  "mercy_bloom": {
+    "name": "Mercy Bloom",
+    "type": "Skill",
+    "cost": 1,
+    "rarity": "Uncommon",
+    "tags": [
+      "Root"
+    ],
+    "text": "Heal 5. Add Rot to discard.",
+    "heal": 5,
+    "addDiscard": "rot"
+  },
+  "dissonance": {
+    "name": "Dissonance",
+    "type": "Curse",
+    "cost": 99,
+    "rarity": "Curse",
+    "tags": [
+      "Curse"
+    ],
+    "text": "Unplayable. At end of turn, lose 2 HP.",
+    "unplayable": true,
+    "endTurnDamage": 2
+  },
+  "rot": {
+    "name": "Rot",
+    "type": "Curse",
+    "cost": 99,
+    "rarity": "Curse",
+    "tags": [
+      "Curse",
+      "Root"
+    ],
+    "text": "Unplayable. When drawn, reduce healing this combat.",
+    "unplayable": true,
+    "onDrawStatus": {
+      "Blight": 1
+    }
+  },
+  "bell_slam": {
+    "name": "Bell Slam",
+    "type": "Attack",
+    "cost": 2,
+    "rarity": "Basic",
+    "tags": [
+      "Hammer"
+    ],
+    "text": "Deal 18. Apply 1 Weak.",
+    "damage": 18,
+    "apply": {
+      "Weak": 1
+    }
+  }
+}

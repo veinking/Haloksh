@@ -1,0 +1,184 @@
+{
+  "ash_hound": {
+    "name": "Ash Hound",
+    "class": "hound",
+    "hp": 30,
+    "role": "Striker",
+    "intents": [
+      {
+        "name": "Bite",
+        "type": "attack",
+        "damage": 6,
+        "icon": "\u2694"
+      },
+      {
+        "name": "Howl",
+        "type": "buff",
+        "status": {
+          "Strength": 2
+        },
+        "icon": "\u2b06"
+      },
+      {
+        "name": "Tear",
+        "type": "attack",
+        "damage": 10,
+        "apply": {
+          "Bleed": 1
+        },
+        "icon": "\ud83e\ude78"
+      }
+    ]
+  },
+  "bell_rat_swarm": {
+    "name": "Bell-Rat Swarm",
+    "class": "rat",
+    "hp": 24,
+    "role": "Swarmer",
+    "intents": [
+      {
+        "name": "Nibble",
+        "type": "attack",
+        "damage": 4,
+        "icon": "\u2694"
+      },
+      {
+        "name": "Swarm",
+        "type": "attack",
+        "damage": 8,
+        "icon": "\u2694"
+      },
+      {
+        "name": "Plague Scratch",
+        "type": "attack",
+        "damage": 6,
+        "apply": {
+          "Blight": 1
+        },
+        "icon": "\u2620"
+      }
+    ]
+  },
+  "hollow_pilgrim": {
+    "name": "Hollow Pilgrim",
+    "class": "pilgrim",
+    "hp": 38,
+    "role": "Afflicter",
+    "intents": [
+      {
+        "name": "Censer Smoke",
+        "type": "debuff",
+        "applyPlayer": {
+          "Weak": 1
+        },
+        "icon": "\ud83e\udde0"
+      },
+      {
+        "name": "Staff Hit",
+        "type": "attack",
+        "damage": 7,
+        "icon": "\u2694"
+      },
+      {
+        "name": "Curse Card",
+        "type": "add_card",
+        "to": "discard",
+        "card": "dissonance",
+        "icon": "\u2620"
+      }
+    ]
+  },
+  "candle_thief": {
+    "name": "Candle Thief",
+    "class": "thief",
+    "hp": 54,
+    "role": "Elite Trickster",
+    "elite": true,
+    "intents": [
+      {
+        "name": "Dash Cut",
+        "type": "attack",
+        "damage": 10,
+        "icon": "\u2694"
+      },
+      {
+        "name": "Steal Tempo",
+        "type": "drain_energy_next_turn",
+        "amount": 1,
+        "icon": "\u26a1"
+      },
+      {
+        "name": "Knife Flurry",
+        "type": "attack",
+        "damage": 15,
+        "icon": "\u2694"
+      }
+    ]
+  },
+  "bell_knight": {
+    "name": "Bell Knight Penitent",
+    "class": "knight",
+    "hp": 88,
+    "role": "Elite Defender",
+    "elite": true,
+    "intents": [
+      {
+        "name": "Armor Up",
+        "type": "block",
+        "block": 18,
+        "icon": "\ud83d\udee1"
+      },
+      {
+        "name": "Bell Drag",
+        "type": "attack",
+        "damage": 13,
+        "applyPlayer": {
+          "Frail": 1
+        },
+        "icon": "\u2694"
+      },
+      {
+        "name": "Delayed Slam",
+        "type": "attack",
+        "damage": 24,
+        "icon": "\ud83d\udd28"
+      }
+    ]
+  },
+  "bell_mother": {
+    "name": "The Bell Mother",
+    "class": "mother",
+    "hp": 240,
+    "role": "Boss",
+    "boss": true,
+    "intents": [
+      {
+        "name": "Infant Bell",
+        "type": "add_card",
+        "to": "discard",
+        "card": "dissonance",
+        "icon": "\u2620"
+      },
+      {
+        "name": "Choir Lash",
+        "type": "attack",
+        "damage": 14,
+        "icon": "\u2694"
+      },
+      {
+        "name": "Mute Prayer",
+        "type": "debuff",
+        "applyPlayer": {
+          "Weak": 2
+        },
+        "icon": "\ud83e\udde0"
+      },
+      {
+        "name": "Great Toll",
+        "type": "attack",
+        "damage": 26,
+        "icon": "\ud83d\udd14"
+      }
+    ]
+  }
+}
