@@ -10,6 +10,8 @@ const relics = load("relics.json");
 const weapons = load("weapons.json");
 const enemies = load("enemies.json");
 const events = load("events.json");
+const loadoutsPath = path.join(dataDir, "loadouts.json");
+const loadouts = fs.existsSync(loadoutsPath) ? JSON.parse(fs.readFileSync(loadoutsPath, "utf8")) : null;
 
 let errors = [];
 const validCardRarity = new Set(["common", "uncommon", "rare"]);
@@ -42,6 +44,30 @@ for (const [wid, w] of Object.entries(weapons)) {
   if (!w.starter || !Array.isArray(w.starter)) errors.push(`Weapon ${wid} missing starter deck`);
   for (const cid of w.starter || []) {
     if (!cards[cid]) errors.push(`Weapon ${wid} references missing card ${cid}`);
+  }
+}
+
+if (loadouts) {
+  const loadoutIds = new Set();
+  for (const [lid, loadout] of Object.entries(loadouts)) {
+    if (loadoutIds.has(lid)) errors.push(`Duplicate loadout id ${lid}`);
+    loadoutIds.add(lid);
+    if (loadout.id && loadout.id !== lid) errors.push(`Loadout ${lid} has mismatched id field ${loadout.id}`);
+    if (!Array.isArray(loadout.startingDeck) || !loadout.startingDeck.length) errors.push(`Loadout ${lid} missing startingDeck`);
+    for (const cid of loadout.startingDeck || []) {
+      if (!cards[cid]) errors.push(`Loadout ${lid} references missing starter card ${cid}`);
+    }
+    if (loadout.startingRelic && !relics[loadout.startingRelic]) errors.push(`Loadout ${lid} references missing starter relic ${loadout.startingRelic}`);
+    if (loadout.unlockReward) {
+      if (loadout.unlockReward.type === "card" && !cards[loadout.unlockReward.id]) errors.push(`Loadout ${lid} unlockReward missing card ${loadout.unlockReward.id}`);
+      if (loadout.unlockReward.type === "relic" && !relics[loadout.unlockReward.id]) errors.push(`Loadout ${lid} unlockReward missing relic ${loadout.unlockReward.id}`);
+      if (loadout.unlockReward.type === "loadout" && !loadouts[loadout.unlockReward.id]) errors.push(`Loadout ${lid} unlockReward missing loadout ${loadout.unlockReward.id}`);
+    }
+    if (loadout.requiredDifficulty !== undefined) {
+      if (!Number.isInteger(loadout.requiredDifficulty) || loadout.requiredDifficulty < 0 || loadout.requiredDifficulty > 5) {
+        errors.push(`Loadout ${lid} has invalid requiredDifficulty ${loadout.requiredDifficulty}`);
+      }
+    }
   }
 }
 

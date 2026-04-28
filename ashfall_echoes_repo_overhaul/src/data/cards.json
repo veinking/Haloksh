@@ -300,7 +300,8 @@
     "archetypes": [
       "tempo",
       "strength"
-    ]
+    ],
+    "unlock": "meta"
   },
   "red_carve": {
     "name": "Red Carve",
