@@ -44,6 +44,13 @@ const ANIMATION_PROFILE = {
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const shuffle = (a) => a.sort(() => Math.random() - 0.5);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
+const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const animDelay = (ms) => prefersReducedMotion() ? 0 : ms;
+
+function safeCombatUIUpdate(){
+  if(S?.combat) combatUI();
+}
 
 async function loadData(){
   const entries = await Promise.all(Object.entries(DATA_PATHS).map(async ([k,p]) => [k, await fetch(p).then(r=>r.json())]));
@@ -321,9 +328,9 @@ function startCombat(enemyId){
     enemy:e, draw:shuffle(deck), hand:[], discard:[], exhaust:[],
     energy:3 + (S.relics.includes("hollow_crown") ? 1 : 0),
     block:S.relics.includes("pilgrims_nail") ? DB.relics.pilgrims_nail.value : 0,
-    fortify:0, str:0, weak:0, frail:0, blight:0, bonus:0, bled:false,
+    fortify:0, str:0, weak:0, frail:0, blight:0, bleed:0, bonus:0, bled:false,
     counter:0, turn:1, firstAtk:true, firstSkill:true, skillsPlayed:0, blockMeter:0,
-    powers:{}, log:[`${e.name} appears.`], nextTurnDrain:0
+    powers:{}, log:[`${e.name} appears.`], nextTurnDrain:0, locked:false
   };
   drawCards(5);
   combatUI();
@@ -350,26 +357,53 @@ function currentIntent(){
   return E.intents[E.turn % E.intents.length];
 }
 function intentText(it){
-  if(it.type==="attack") return `${it.icon} ${it.name} · ${it.damage} dmg`;
-  if(it.type==="block") return `${it.icon} ${it.name} · ${it.block} block`;
-  return `${it.icon || "?"} ${it.name}`;
+  if(!it) return "? Unknown";
+  const icon = it.icon || "?";
+  if(it.type === "attack"){
+    const parts = [`${it.damage || 0} damage`];
+    if(it.apply) parts.push(...Object.entries(it.apply).map(([k,v]) => `${k} ${v}`));
+    if(it.applyPlayer) parts.push(...Object.entries(it.applyPlayer).map(([k,v]) => `${k} ${v}`));
+    return `${icon} ${it.name} · ${parts.join(" + ")}`;
+  }
+  if(it.type === "debuff"){
+    const text = Object.entries(it.applyPlayer || {}).map(([k,v]) => `${k} ${v}`).join(", ");
+    return `${icon} ${it.name} · ${text || "Debuff"}`;
+  }
+  if(it.type === "buff"){
+    const text = Object.entries(it.status || {}).map(([k,v]) => `${k} ${v}`).join(", ");
+    return `${icon} ${it.name} · ${text || "Buff"}`;
+  }
+  if(it.type === "block") return `${icon} ${it.name} · ${it.block} block`;
+  if(it.type === "add_card") return `${icon} ${it.name} · Adds ${DB.cards[it.card]?.name || it.card}`;
+  if(it.type === "drain_energy_next_turn") return `${icon} ${it.name} · -${it.amount} energy next turn`;
+  return `${icon} ${it.name}`;
+}
+
+function statusInfo(key){
+  return STATUS_INFO[key] || "Status effect";
+}
+
+function statusChips(statusPairs){
+  if(!statusPairs.length) return '<div class="status-row empty">No status effects</div>';
+  return `<div class="status-row">${statusPairs.map(([k,v]) => `<span class="status-chip" title="${statusInfo(k)}">${k.toUpperCase()} ${v}</span>`).join("")}</div>`;
 }
 function combatUI(){
   const C = S.combat, E = C.enemy, it = currentIntent();
-  const enemyStatuses = Object.entries(E.status || {}).filter(([,v])=>v>0).map(([k,v])=>`${k} ${v}`).join(" · ") || "None";
-  const playerStatuses = ["str","weak","frail","blight","ward","fortify"].map((k)=>[k,C[k]||0]).filter(([,v])=>v>0).map(([k,v])=>`${k.toUpperCase()} ${v}`).join(" · ") || "None";
+  const enemyStatuses = Object.entries(E.status || {}).filter(([,v])=>v>0);
+  const playerStatuses = [["Strength", C.str||0], ["Weak", C.weak||0], ["Frail", C.frail||0], ["Blight", C.blight||0], ["Bleed", C.bleed||0], ["Ward", C.ward||0], ["Fortify", C.fortify||0]].filter(([,v])=>v>0);
   const hp = Math.max(0, E.hp/E.maxHp*100), php = Math.max(0, S.hp/S.maxHp*100);
+  const intentDanger = it?.type === "attack" && (it.damage || 0) >= 15;
   G.innerHTML = `<div class="combat">
-    <div class="top"><div><div class="logo">${E.name}</div><div class="small">Turn ${C.turn} · ${intentText(it)}</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill energy">${C.energy}⚡</span></div></div>
+    <div class="top"><div><div class="logo">${E.name}</div><div class="small">Turn ${C.turn}</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill energy">${C.energy}⚡</span></div></div>
     <div class="stage" id="stage">
       <div class="embers"></div>
       <div class="fog"></div>
       <div class="bars"><div class="bar"><div class="fill" style="width:${hp}%"></div></div><div class="bar"><div class="fill" style="width:${php}%"></div></div></div>
-      <div class="intent">${intentText(it)}</div>
+      <div class="intent ${intentDanger ? "intent-danger" : ""}">${intentText(it)}</div>
       <div class="enemy ${E.class || ""}" id="enemy"><div class="core"></div><div class="head"></div><div class="eye"></div><div class="robe"></div><div class="bells"></div><div class="face"></div></div>
       <div class="player player-combat"><div class="cloak"></div><div class="head"></div><div class="body"></div><div class="lamp"></div><div class="blade"></div></div>
     </div>
-    <div class="combat-actions"><div>Block ${C.block} · <button onclick="showPile('draw')">Draw ${C.draw.length}</button> · <button onclick="showPile('discard')">Discard ${C.discard.length}</button> · <button onclick="showPile('exhaust')">Exhaust ${C.exhaust.length}</button><div class="small" title="${enemyStatuses}">Enemy: ${enemyStatuses}</div><div class="small" title="${playerStatuses}">You: ${playerStatuses}</div><div class="log">${C.log.slice(-2).join(" / ")}</div></div><button onclick="endTurn()">End Turn</button></div>
+    <div class="combat-actions"><div>Block ${C.block} · <button onclick="showPile('draw')">Draw ${C.draw.length}</button> · <button onclick="showPile('discard')">Discard ${C.discard.length}</button> · <button onclick="showPile('exhaust')">Exhaust ${C.exhaust.length}</button> · <button onclick="showCombatLog()">Combat Log</button>${statusChips(enemyStatuses)}${statusChips(playerStatuses)}<div class="log">${C.log.slice(-3).join(" / ")}</div></div><button onclick="endTurn()" ${C.locked ? "disabled" : ""}>End Turn</button></div>
     <div class="hand">${C.hand.map((id,i)=>cardHTML(id,i)).join("")}</div>
   </div>`;
 }
@@ -384,15 +418,17 @@ function cardHTML(id,i){
   const ca = DB.cards[id], C = S.combat;
   let cost = ca.cost;
   if(C.firstSkill && ca.type==="Skill" && S.relics.includes("cracked_charm")) cost = 0;
-  const dis = ca.unplayable || cost > C.energy;
-  return `<div class="card ${dis ? "disabled" : "playable"}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div><div class="txt">${ca.text}</div></div>`;
+  const dis = C.locked || ca.unplayable || cost > C.energy;
+  return `<div class="card ${dis ? "disabled" : "playable"}" data-index="${i}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div><div class="txt">${ca.text}</div></div>`;
 }
-function floatDamage(value){
+function floatFeedback(text, target = "enemy"){
   const stage = document.getElementById("stage");
   if(!stage) return;
   const f = document.createElement("div");
-  f.className = "floatdmg"; f.textContent = value;
-  stage.appendChild(f); setTimeout(()=>f.remove(),560);
+  f.className = `float-feedback target-${target}`;
+  f.textContent = text;
+  stage.appendChild(f);
+  setTimeout(()=>f.remove(), animDelay(560) || 560);
 }
 function enemyHitFx(){
   const en = document.getElementById("enemy"), st = document.getElementById("stage");
@@ -417,7 +453,7 @@ function damageEnemy(amount, hits=1){
     E.hp -= dmg; total += dmg;
   }
   C.log.push(`Dealt ${total}.`);
-  enemyHitFx(); floatDamage(total);
+  enemyHitFx(); floatFeedback(`-${total}`, "enemy");
 }
 function gainBlock(amount){
   const C = S.combat;
@@ -425,33 +461,49 @@ function gainBlock(amount){
   C.block += amount;
   C.blockMeter += amount;
   C.log.push(`Gained ${amount} Block.`);
+  floatFeedback(`+${amount} Block`, "player");
   if(S.relics.includes("bellplate_charm") && C.blockMeter >= DB.relics.bellplate_charm.threshold){
     C.blockMeter -= DB.relics.bellplate_charm.threshold;
     S.combat.enemy.hp -= DB.relics.bellplate_charm.value;
     C.log.push("Bellplate Charm tolls.");
-    enemyHitFx(); floatDamage(DB.relics.bellplate_charm.value);
+    enemyHitFx(); floatFeedback(`-${DB.relics.bellplate_charm.value}`, "enemy");
   }
 }
 function applyEnemyStatus(obj){
   const E = S.combat.enemy;
   Object.entries(obj||{}).forEach(([k,v])=>{ E.status[k]=(E.status[k]||0)+v; S.combat.log.push(`${E.name} gains ${k}.`); });
 }
-function applyPlayerStatus(obj){
+function isNegativePlayerStatus(k){
+  return ["Weak", "Frail", "Blight", "Bleed", "Bound", "Doom"].includes(k);
+}
+
+function applyPlayerStatus(obj, source = "self"){
   const C = S.combat;
   Object.entries(obj||{}).forEach(([k,v])=>{
+    if(source === "enemy" && isNegativePlayerStatus(k) && (C.ward || 0) > 0){
+      C.ward -= 1;
+      C.log.push(`Ward negated ${k}.`);
+      floatFeedback("Ward!", "player");
+      return;
+    }
     if(k==="Strength") C.str += v;
     else C[k.toLowerCase()] = (C[k.toLowerCase()]||0)+v;
     C.log.push(`You gain ${k}.`);
+    floatFeedback(`${k} +${v}`, "player");
   });
 }
-function playCard(i){
+async function playCard(i){
   const C = S.combat, id = C.hand[i], ca = DB.cards[id];
-  if(!ca || ca.unplayable) return;
+  if(!ca || ca.unplayable || C.locked) return;
   let cost = ca.cost;
   if(C.firstSkill && ca.type==="Skill" && S.relics.includes("cracked_charm")) cost = 0;
   if(cost > C.energy) return;
+  C.locked = true;
   C.energy -= cost; C.hand.splice(i,1);
   C.log.push(`Played ${ca.name}.`);
+  safeCombatUIUpdate();
+  document.querySelector(`.card[data-index="${i}"]`)?.classList.add("activating");
+  await sleep(animDelay(80));
   animatePlayerAction(ca);
 
   if(ca.type==="Skill"){
@@ -468,17 +520,21 @@ function playCard(i){
   }
   if(ca.selfDamage){
     S.hp -= ca.selfDamage; C.bled = true;
+    floatFeedback(`-${ca.selfDamage}`, "player");
     if(S.weapon==="vein_knife") damageEnemy(2);
   }
   if(ca.gainEnergy) C.energy += ca.gainEnergy;
   if(ca.block) gainBlock(ca.block);
   if(ca.bonusBlockIfCurse && C.hand.some((cardId)=>DB.cards[cardId]?.type === "Curse")) gainBlock(ca.bonusBlockIfCurse);
   if(ca.fortify){ C.fortify += ca.fortify; gainBlock(ca.fortify); }
-  if(ca.heal){ const heal = Math.max(0, ca.heal - (C.blight||0)); S.hp = Math.min(S.maxHp, S.hp + heal); }
-  if(ca.playerStatus) applyPlayerStatus(ca.playerStatus);
+  if(ca.heal){ const heal = Math.max(0, ca.heal - (C.blight||0)); S.hp = Math.min(S.maxHp, S.hp + heal); floatFeedback(`+${heal} HP`, "player"); }
+  if(ca.playerStatus) applyPlayerStatus(ca.playerStatus, "self");
   if(ca.nextAttackBonus) C.bonus += ca.nextAttackBonus;
   if(ca.counter) C.counter += ca.counter;
-  if(ca.apply) applyEnemyStatus(ca.apply);
+  if(ca.apply){
+    applyEnemyStatus(ca.apply);
+    Object.entries(ca.apply).forEach(([k,v])=>floatFeedback(`${k} +${v}`, "enemy"));
+  }
   if(ca.addDiscard) C.discard.push(ca.addDiscard);
   if(ca.addDraw) C.draw.push(...ca.addDraw);
   if(ca.exhaustRandomHand && C.hand.length){
@@ -507,17 +563,32 @@ function playCard(i){
   if(ca.exhaust) { C.exhaust.push(id); if(C.powers.exhaust_damage) damageEnemy(3); }
   else if(ca.type !== "Power") C.discard.push(id);
 
-  if(S.hp<=0) return death();
-  if(C.enemy.hp<=0) return victory();
-  setTimeout(combatUI,130);
+  await sleep(animDelay(220));
+  if(S.hp<=0){ C.locked = false; return death(); }
+  if(C.enemy.hp<=0){ C.locked = false; return victory(); }
+  C.locked = false;
+  safeCombatUIUpdate();
 }
-function endTurn(){
+async function endTurn(){
   const C = S.combat, E = C.enemy, it = currentIntent();
+  if(C.locked) return;
+  C.locked = true;
   C.hand.forEach(id=>{
     const ca = DB.cards[id];
     if(ca.endTurnDamage){ S.hp -= ca.endTurnDamage; C.log.push(`${ca.name} hurts you for ${ca.endTurnDamage}.`); }
   });
   C.discard.push(...C.hand); C.hand = [];
+
+  if((E.status.Bleed || 0) > 0){
+    const bleedDamage = E.status.Bleed;
+    E.hp -= bleedDamage;
+    C.log.push(`${E.name} bleeds for ${bleedDamage}.`);
+    floatFeedback(`-${bleedDamage}`, "enemy");
+    E.status.Bleed = Math.max(0, E.status.Bleed - 1);
+  }
+
+  if(E.hp<=0){ C.locked = false; return victory(); }
+  await sleep(animDelay(120));
 
   if(it.type==="attack"){
     animateEnemyIntent(it);
@@ -526,18 +597,21 @@ function endTurn(){
     const blocked = Math.min(C.block, dmg);
     const taken = dmg - blocked;
     C.block -= blocked; S.hp -= taken;
-    if(taken > 0) animateActor(".player-combat", "hurt", ANIMATION_PROFILE.player.hurtMs);
+    if(taken > 0){
+      animateActor(".player-combat", "hurt", ANIMATION_PROFILE.player.hurtMs);
+      floatFeedback(`-${taken}`, "player");
+    }
     C.log.push(`${E.name} hits for ${taken}.`);
     if(C.counter){ E.hp -= C.counter; C.log.push(`Counter reflects ${C.counter}.`); }
-    if(it.apply) applyPlayerStatus(it.apply);
-    if(it.applyPlayer) applyPlayerStatus(it.applyPlayer);
+    if(it.apply) applyPlayerStatus(it.apply, "enemy");
+    if(it.applyPlayer) applyPlayerStatus(it.applyPlayer, "enemy");
   }
   if(it.type==="buff") applyEnemyStatus(it.status);
   if(it.type==="debuff"){
     animateEnemyIntent(it);
-    applyPlayerStatus(it.applyPlayer);
+    applyPlayerStatus(it.applyPlayer, "enemy");
   }
-  if(it.type==="block"){ E.block = (E.block||0) + it.block; C.log.push(`${E.name} gains ${it.block} Block.`); }
+  if(it.type==="block"){ E.block = (E.block||0) + it.block; C.log.push(`${E.name} gains ${it.block} Block.`); floatFeedback(`+${it.block} Block`, "enemy"); }
   if(it.type==="add_card"){
     if(it.to==="discard") C.discard.push(it.card); else C.draw.push(it.card);
     C.log.push(`${DB.cards[it.card].name} enters your ${it.to}.`);
@@ -545,10 +619,11 @@ function endTurn(){
   if(it.type==="drain_energy_next_turn"){
     C.nextTurnDrain = it.amount;
     C.log.push("Your tempo is stolen.");
+    floatFeedback(`-${it.amount} Energy`, "center");
   }
 
-  if(S.hp<=0) return death();
-  if(E.hp<=0) return victory();
+  if(S.hp<=0){ C.locked = false; return death(); }
+  if(E.hp<=0){ C.locked = false; return victory(); }
 
   E.turn++;
   C.turn++;
@@ -558,10 +633,26 @@ function endTurn(){
   C.fortify = 0;
   C.bled = false; C.counter = 0; C.firstAtk = true; C.firstSkill = true;
   ["weak","frail","blight"].forEach(k=>{ if(C[k]>0) C[k]--; });
-  Object.keys(E.status).forEach(k=>{ if(E.status[k]>0) E.status[k]--; });
-  if(S.relics.includes("mercy_root")) S.hp = Math.min(S.maxHp, S.hp + DB.relics.mercy_root.value);
+  Object.keys(E.status).forEach(k=>{
+    if(k === "Bleed") return;
+    if(E.status[k]>0) E.status[k]--;
+  });
+  if((C.bleed || 0) > 0){
+    const selfBleed = C.bleed;
+    S.hp -= selfBleed;
+    C.log.push(`You bleed for ${selfBleed}.`);
+    floatFeedback(`-${selfBleed}`, "player");
+    C.bleed = Math.max(0, C.bleed - 1);
+    if(S.hp<=0){ C.locked = false; return death(); }
+  }
+  if(S.relics.includes("mercy_root")){
+    const heal = DB.relics.mercy_root.value;
+    S.hp = Math.min(S.maxHp, S.hp + heal);
+    floatFeedback(`+${heal} HP`, "player");
+  }
   drawCards(5);
-  combatUI();
+  C.locked = false;
+  safeCombatUIUpdate();
 }
 function victory(){
   const E = S.combat.enemy, boss = E.boss;
@@ -594,5 +685,12 @@ function death(){
   S.memories.push(mem); S.deaths++; S.hp = S.maxHp; S.combat = null;
   cutscene("You Died", `The lantern drops. The Hollow preserves one memory: ${DB.cards[mem].name}.`, drawWorld);
 }
+function showCombatLog(){
+  const C = S.combat;
+  if(!C) return;
+  const body = C.log.length ? C.log.slice(-40).map((line)=>`<p>${line}</p>`).join("") : "<p>No entries yet.</p>";
+  modal("Combat Log", `<div class="combat-log">${body}</div>`);
+}
 window.showPile = showPile;
+window.showCombatLog = showCombatLog;
 loadData();
