@@ -44,7 +44,11 @@ const SETTINGS_DEFAULTS = {
   textSize: "normal",
   highContrast: false,
   autoSave: true,
-  combatSpeed: "normal"
+  combatSpeed: "normal",
+  sfxEnabled: true,
+  sfxVolume: 0.65,
+  screenShake: true,
+  animationIntensity: "normal"
 };
 const KEYWORD_INFO = {
   Bleed: "Takes damage at end of turn, then decreases by 1.",
@@ -81,9 +85,117 @@ const ANIMATION_PROFILE = {
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const shuffle = (a) => a.sort(() => Math.random() - 0.5);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
-const prefersReducedMotion = () => Boolean(S?.settings?.reducedMotion) || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const JUICE_QUEUE = Promise.resolve();
+const SFX_NAMES = ["card_play","attack_light","attack_heavy","block","heal","status","ward","burn_tick","bleed_tick","enemy_attack","enemy_death","boss_phase","reward_card","reward_relic","buy","error","button","map_node","rest","event_choice"];
+const sfxState = { cache:new Map(), recent:new Map(), manifest:null };
+
+function getSettings(){
+  return S?.settings || loadSettings();
+}
+
+function isReducedMotion(){
+  return Boolean(getSettings().reducedMotion) || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const animDelay = (ms) => prefersReducedMotion() ? 0 : ms;
+const animDelay = (ms) => isReducedMotion() ? 0 : Math.max(0, ms);
+
+function animationScale(){
+  const intensity = getSettings().animationIntensity || "normal";
+  if(intensity === "low") return 0.75;
+  if(intensity === "high") return 1.2;
+  return 1;
+}
+
+function scaledDelay(ms){
+  return Math.round(animDelay(ms) * animationScale());
+}
+
+function setSfxEnabled(enabled){
+  toggleSetting("sfxEnabled", Boolean(enabled));
+}
+
+function setSfxVolume(value){
+  const clamped = Math.min(1, Math.max(0, Number(value) || 0));
+  toggleSetting("sfxVolume", clamped);
+}
+
+function preloadSfxManifest(manifest = null){
+  sfxState.manifest = manifest;
+}
+
+function resolveElement(selectorOrEl){
+  if(!selectorOrEl) return null;
+  if(typeof selectorOrEl === "string") return document.querySelector(selectorOrEl);
+  return selectorOrEl;
+}
+
+function flashElement(selectorOrEl, className, ms = 220){
+  const el = resolveElement(selectorOrEl);
+  if(!el || !className) return;
+  el.classList.add(className);
+  setTimeout(()=>el.classList.remove(className), scaledDelay(ms) || 1);
+}
+
+function pulseElement(selectorOrEl, className, ms = 260){
+  flashElement(selectorOrEl, className, ms);
+}
+
+function shakeScreen(intensity = "light"){
+  if(isReducedMotion() || !getSettings().screenShake) return;
+  const stage = document.getElementById("stage") || document.getElementById("game");
+  if(!stage) return;
+  const map = { light:"screen-shake-light", medium:"screen-shake-medium", heavy:"screen-shake-heavy" };
+  const cls = map[intensity] || map.light;
+  stage.classList.add(cls);
+  setTimeout(()=>stage.classList.remove(cls), scaledDelay(220));
+}
+
+async function hitStop(ms = 70){
+  if(isReducedMotion()) return;
+  const root = document.documentElement;
+  root.classList.add("hit-stop");
+  await sleep(scaledDelay(ms));
+  root.classList.remove("hit-stop");
+}
+
+function queueJuice(fn){
+  if(typeof fn !== "function") return Promise.resolve();
+  sfxState.queue = (sfxState.queue || Promise.resolve()).then(()=>Promise.resolve(fn())).catch(()=>{});
+  return sfxState.queue;
+}
+
+async function runJuiceSequence(steps = []){
+  for(const step of steps){
+    if(typeof step === "number") await sleep(scaledDelay(step));
+    else if(typeof step === "function") await Promise.resolve(step());
+  }
+}
+
+function playSfx(name, options = {}){
+  if(!SFX_NAMES.includes(name)) return;
+  const settings = getSettings();
+  if(!settings.sfxEnabled) return;
+  const now = Date.now();
+  const throttleMs = options.throttleMs ?? 80;
+  const last = sfxState.recent.get(name) || 0;
+  if(now - last < throttleMs) return;
+  sfxState.recent.set(name, now);
+  const src = options.src || sfxState.manifest?.[name] || `./assets/audio/${name}.mp3`;
+  let audio = sfxState.cache.get(src);
+  if(!audio){
+    audio = new Audio(src);
+    audio.preload = "auto";
+    audio.addEventListener("error", ()=>{}, { once:true });
+    sfxState.cache.set(src, audio);
+  }
+  try {
+    const clone = audio.cloneNode();
+    clone.volume = Math.min(1, Math.max(0, (options.volume ?? settings.sfxVolume ?? 0.65)));
+    const maybePromise = clone.play();
+    if(maybePromise?.catch) maybePromise.catch(()=>{});
+  } catch {}
+}
 
 function safeCombatUIUpdate(){
   if(S?.combat) combatUI();
@@ -200,9 +312,10 @@ function persistSettings(){
 }
 
 function applySettings(){
-  const settings = S?.settings || loadSettings();
+  const settings = getSettings();
   document.documentElement.classList.toggle("text-large", settings.textSize === "large");
   document.documentElement.classList.toggle("high-contrast", Boolean(settings.highContrast));
+  document.documentElement.dataset.animIntensity = settings.animationIntensity || "normal";
 }
 
 function autosave(reason = ""){
@@ -254,6 +367,7 @@ function fresh(){
     mapEncounter:null,
     pendingNodeCompletion:null,
     map:null,
+    recentUnlockedNodes:[],
     flags:{},
     nextCombat:{ ward:0, strength:0, block:0, draw:0, energy:0 },
     nextCombatStatus:{},
@@ -367,9 +481,13 @@ function abandonRun(){
 }
 
 function openSettings(){
-  const settings = S?.settings || loadSettings();
+  const settings = getSettings();
   modal("Settings", `<div class="menu-list">
     <label><span>Reduced Motion</span><input type="checkbox" ${settings.reducedMotion ? "checked" : ""} onchange="toggleSetting('reducedMotion', this.checked)"></label>
+    <label><span>SFX Enabled</span><input type="checkbox" ${settings.sfxEnabled ? "checked" : ""} onchange="setSfxEnabled(this.checked)"></label>
+    <label><span>SFX Volume</span><input type="range" min="0" max="1" step="0.05" value="${settings.sfxVolume}" onchange="setSfxVolume(this.value)"></label>
+    <label><span>Screen Shake</span><input type="checkbox" ${settings.screenShake ? "checked" : ""} onchange="toggleSetting('screenShake', this.checked)"></label>
+    <label><span>Animation Intensity</span><select onchange="toggleSetting('animationIntensity', this.value)"><option value="low" ${settings.animationIntensity === "low" ? "selected" : ""}>Low</option><option value="normal" ${settings.animationIntensity === "normal" ? "selected" : ""}>Normal</option><option value="high" ${settings.animationIntensity === "high" ? "selected" : ""}>High</option></select></label>
     <label><span>Large Text</span><input type="checkbox" ${settings.textSize === "large" ? "checked" : ""} onchange="toggleSetting('textSize', this.checked ? 'large' : 'normal')"></label>
     <label><span>High Contrast</span><input type="checkbox" ${settings.highContrast ? "checked" : ""} onchange="toggleSetting('highContrast', this.checked)"></label>
     <label><span>Auto Save</span><input type="checkbox" ${settings.autoSave ? "checked" : ""} onchange="toggleSetting('autoSave', this.checked)"></label>
@@ -563,7 +681,8 @@ function nodeClass(node){
   const selected = S.selectedNodeId === node.id;
   const visited = S.map.visited.includes(node.id);
   const current = S.map.currentNodeId === node.id;
-  return ["map-node", `node-${node.type}`, reachable ? "reachable" : "locked", visited ? "visited" : "", current ? "current" : "", selected ? "selected" : ""].filter(Boolean).join(" ");
+  const unlocked = (S.recentUnlockedNodes || []).includes(node.id);
+  return ["map-node", `node-${node.type}`, reachable ? "reachable" : "locked", visited ? "visited" : "", current ? "current" : "", selected ? "selected" : "", unlocked ? "node-unlock-pulse" : ""].filter(Boolean).join(" ");
 }
 
 function mapVisionNote(){
@@ -618,6 +737,7 @@ function drawWorld(){
   </div>`;
   autosave("enter-map");
   document.getElementById("mapScroll")?.scrollTo({top:99999, behavior:"smooth"});
+  applyButtonFeedback(G);
 }
 
 function selectMapNode(nodeId){
@@ -714,6 +834,7 @@ function enterSelectedNode(){
 }
 
 function completeCurrentNode(result = {}){
+  const beforeReachable = new Set(reachableNodeIds());
   const nodeId = result.nodeId || S.mapEncounter?.nodeId || S.pendingNodeCompletion;
   const node = nodeById(nodeId);
   if(!node) return;
@@ -725,6 +846,8 @@ function completeCurrentNode(result = {}){
   S.map.pathHistory.push(routeLog);
   S.pendingNodeCompletion = null;
   S.mapEncounter = null;
+  const afterReachable = reachableNodeIds().filter((id)=>!beforeReachable.has(id));
+  S.recentUnlockedNodes = afterReachable;
   if(node.type === "boss"){
     cutscene("Act Cleared", "The gate falls silent. You have survived Act 1.", ()=>{
       S.hp = Math.min(S.maxHp, S.hp + 18);
@@ -747,41 +870,82 @@ function toast(msg){
   setTimeout(()=>d.remove(), 2200);
 }
 
+function applyButtonFeedback(scope = document){
+  scope.querySelectorAll("button, .card, .event-choice, .map-node").forEach((el)=>{
+    if(el.dataset.juiced) return;
+    el.dataset.juiced = "1";
+    el.addEventListener("pointerdown", ()=>{
+      if(el.disabled || el.classList.contains("disabled") || el.classList.contains("locked")) return;
+      pulseElement(el, "button-press-pop", 160);
+      playSfx("button", { throttleMs: 25 });
+    });
+  });
+}
+
+function animateRewardReveal(kind = "card"){
+  const cls = kind === "relic" ? "relic-reveal" : "reward-reveal";
+  const items = [...document.querySelectorAll(".reward-grid > button")];
+  const rareClass = kind === "card" ? ".card-rare" : "";
+  items.forEach((item, idx)=>{
+    setTimeout(()=>{
+      item.classList.add(cls);
+      if(rareClass && item.querySelector(rareClass)) item.classList.add("relic-reveal");
+      playSfx(kind === "relic" ? "reward_relic" : "reward_card", { throttleMs: 90 });
+    }, scaledDelay(70 * idx));
+  });
+}
+
+function showPhaseOverlay(text){
+  const stage = document.getElementById("stage");
+  if(!stage || !text) return;
+  const overlay = document.createElement("div");
+  overlay.className = "phase-overlay";
+  overlay.textContent = text;
+  stage.appendChild(overlay);
+  setTimeout(()=>overlay.remove(), scaledDelay(980) || 980);
+}
+
 function pulseStage(className, duration){
   const stage = document.getElementById("stage");
   if(!stage) return;
-  stage.classList.add(className);
-  setTimeout(()=>stage.classList.remove(className), duration);
+  pulseElement(stage, className, duration);
 }
 
 function animateActor(selector, className, duration){
   const el = document.querySelector(selector);
   if(!el) return;
-  el.classList.add(className);
-  setTimeout(()=>el.classList.remove(className), duration);
+  pulseElement(el, className, duration);
 }
 
 function animatePlayerAction(card){
   if(!card) return;
   if(card.type === "Attack"){
-    animateActor(".player-combat", "attack", ANIMATION_PROFILE.player.attackMs);
-    pulseStage("shake-light", ANIMATION_PROFILE.camera.lightShakeMs);
+    animateActor(".player-combat", "attack anim-player-attack", ANIMATION_PROFILE.player.attackMs);
+    shakeScreen("light");
+    playSfx("attack_light");
     return;
   }
   animateActor(".player-combat", "cast", ANIMATION_PROFILE.player.skillMs);
+  pulseElement(".player-combat", "anim-status-apply", ANIMATION_PROFILE.player.skillMs);
 }
 
 function animateEnemyIntent(intent){
   if(!intent) return;
+  pulseElement(".intent", "anim-status-apply", 180);
   if(intent.damage){
     animateActor("#enemy", "attack", ANIMATION_PROFILE.enemy.attackMs);
-    if((intent.damage || 0) * (intent.hits || 1) >= 18) pulseStage("shake-heavy", ANIMATION_PROFILE.camera.heavyShakeMs);
+    playSfx("enemy_attack", { throttleMs:120 });
+    const total = (intent.damage || 0) * (intent.hits || 1);
+    if(total >= 22) shakeScreen("heavy");
+    else if(total >= 15) shakeScreen("medium");
+    else shakeScreen("light");
     return;
   }
-  animateActor("#enemy", "chant", ANIMATION_PROFILE.enemy.castMs);
+  animateActor("#enemy", "chant anim-status-apply", ANIMATION_PROFILE.enemy.castMs);
 }
 function modal(title, body){
   G.innerHTML += `<div class="modal"><div class="modalbox"><h2>${title}</h2>${body}<button onclick="document.querySelector('.modal').remove()">Close</button></div></div>`;
+  applyButtonFeedback(document.querySelector(".modal") || document);
 }
 function cardClassNames(cardInstance){
   const card = getCardInstanceDef(cardInstance);
@@ -884,6 +1048,7 @@ function showEvent(eventId){
   if(!event){ toast('The omen fades.'); completeEvent({ text:'Event lost.' }); drawWorld(); return; }
   S.activeEvent = { id:event.id, nodeId:S.mapEncounter?.nodeId || S.selectedNodeId };
   G.innerHTML = `<div class="screen event-screen"><div class="top"><div><div class="logo">${event.title}</div><div class="small">${event.tags?.join(' · ') || 'Omen'}</div></div><div><span class="pill echoes-pill">Echoes ${S.gold}</span><span class="pill">HP ${S.hp}/${S.maxHp}</span></div></div><div class="event-wrap"><div class="event-card"><p>${event.description}</p></div><div class="event-choices">${(event.choices || []).map((choice, idx)=>renderEventChoice(choice, idx)).join('')}</div><button onclick="completeEvent({ text:'You leave the omen unanswered.' })">Leave</button></div></div>`;
+  applyButtonFeedback(G);
 }
 function requirementReason(requirements = {}){
   if(requirements.minGold && !canAfford(requirements.minGold)) return `Need ${requirements.minGold} Echoes`;
@@ -1103,7 +1268,7 @@ function triggerRelics(hook, payload = {}){
       case "rusted_fang":
         if(hook === "bleedApplied" && payload.enemy){
           payload.enemy.hp -= DB.relics.rusted_fang.value;
-          enemyHitFx(); floatFeedback(`-${DB.relics.rusted_fang.value}`, "enemy");
+          enemyHitFx(DB.relics.rusted_fang.value); floatFeedback(`-${DB.relics.rusted_fang.value}`, "enemy", "damage");
           relicLog("Bloodglass Thorn spikes extra damage.");
         }
         break;
@@ -1119,7 +1284,8 @@ function triggerRelics(hook, payload = {}){
           const bleed = S.combat.enemy.status.Bleed;
           S.combat.enemy.hp -= bleed;
           S.combat.enemy.status.Bleed = Math.max(0, S.combat.enemy.status.Bleed - 1);
-          floatFeedback(`-${bleed}`, "enemy");
+          floatFeedback(`Bleed ${bleed}`, "enemy", "bleed");
+          playSfx("bleed_tick");
           relicLog("Red Thread Spool triggers an extra Bleed tick.");
         }
         break;
@@ -1135,7 +1301,7 @@ function triggerRelics(hook, payload = {}){
       case "broken_metronome":
         if(hook === "cardPlayed" && S.combat.cardsPlayedThisTurn % 4 === 0){
           S.combat.enemy.hp -= DB.relics.broken_metronome.value;
-          enemyHitFx(); floatFeedback(`-${DB.relics.broken_metronome.value}`, "enemy");
+          enemyHitFx(DB.relics.broken_metronome.value); floatFeedback(`-${DB.relics.broken_metronome.value}`, "enemy", "damage");
           relicLog("Broken Metronome strikes on the 4th card.");
         }
         break;
@@ -1151,7 +1317,8 @@ function triggerRelics(hook, payload = {}){
           if(burn > 0){
             S.combat.enemy.hp -= burn;
             S.combat.enemy.status.Burn = Math.max(0, burn - 1);
-            floatFeedback(`-${burn}`, "enemy");
+            floatFeedback(`Burn ${burn}`, "enemy", "burn");
+            playSfx("burn_tick");
             relicLog("Furnace Saint ignites stored Burn.");
           }
         }
@@ -1361,6 +1528,7 @@ function combatUI(){
     <div class="hand">${C.hand.map((card,i)=>cardHTML(card,i)).join("")}</div>
     ${renderBottomNav()}
   </div>`;
+  applyButtonFeedback(G);
 }
 function showPile(kind){
   const C = S.combat;
@@ -1378,23 +1546,31 @@ function cardHTML(cardInstance,i){
   const classes = [cardClassNames(cardInstance), dis ? "disabled" : "playable"].join(" ");
   return `<div class="${classes}" data-index="${i}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div>${renderArchetypeChips(ca.archetypes)}<div class="txt">${ca.text}</div></div>`;
 }
-function floatFeedback(text, target = "enemy"){
+const feedbackStacks = { enemy:0, player:0, center:0 };
+
+function floatFeedback(text, target = "enemy", type = "status"){
   const stage = document.getElementById("stage");
   if(!stage) return;
   const f = document.createElement("div");
-  f.className = `float-feedback target-${target}`;
+  const stack = feedbackStacks[target] || 0;
+  feedbackStacks[target] = (stack + 1) % 6;
+  f.className = `float-feedback target-${target} feedback-${type}`;
+  f.style.setProperty("--float-offset", `${stack * 14}px`);
   f.textContent = text;
   stage.appendChild(f);
-  setTimeout(()=>f.remove(), animDelay(560) || 560);
-}
-function enemyHitFx(){
-  const en = document.getElementById("enemy"), st = document.getElementById("stage");
-  if(en) en.classList.add("hit");
-  if(st) st.classList.add("shake");
+  const ttl = scaledDelay(640) || 640;
   setTimeout(()=>{
-    en?.classList.remove("hit");
-    st?.classList.remove("shake");
-  }, ANIMATION_PROFILE.enemy.hurtMs);
+    f.remove();
+    feedbackStacks[target] = Math.max(0, (feedbackStacks[target] || 1) - 1);
+  }, ttl);
+}
+
+function enemyHitFx(damage = 0){
+  const en = document.getElementById("enemy");
+  pulseElement(en, "hit anim-enemy-hit flash-hit", ANIMATION_PROFILE.enemy.hurtMs);
+  if(damage >= 20) shakeScreen("heavy");
+  else if(damage >= 15) shakeScreen("medium");
+  else shakeScreen("light");
 }
 function damageEnemy(amount, hits=1){
   const C = S.combat, E = C.enemy;
@@ -1410,14 +1586,16 @@ function damageEnemy(amount, hits=1){
   }
   C.log.push(`Dealt ${total}.`);
   triggerRelics("damageDealt", { amount:total });
-  enemyHitFx(); floatFeedback(`-${total}`, "enemy");
+  enemyHitFx(total); floatFeedback(`-${total}`, "enemy", "damage");
 }
 function gainBlock(amount, options = {}){
   const C = S.combat;
   if(C.frail>0) amount = Math.floor(amount*.75);
   C.block += amount;
   C.log.push(`Gained ${amount} Block.`);
-  floatFeedback(`+${amount} Block`, "player");
+  pulseElement(".combat-actions", "anim-block-gain", 260);
+  playSfx("block");
+  floatFeedback(`+${amount} Block`, "player", "block");
   if(!options.fromRelic) triggerRelics("blockGained", { amount });
 }
 function applyEnemyStatus(obj){
@@ -1442,7 +1620,9 @@ function applyPlayerStatus(obj, source = "self"){
     if(source === "enemy" && isNegativePlayerStatus(k) && (C.ward || 0) > 0){
       C.ward -= 1;
       C.log.push(`Ward negated ${k}.`);
-      floatFeedback("Ward!", "player");
+      flashElement(".combat-actions", "flash-ward", 220);
+      playSfx("ward");
+      floatFeedback("Ward!", "player", "ward");
       triggerRelics("debuffBlocked", { status:k });
       return;
     }
@@ -1450,7 +1630,9 @@ function applyPlayerStatus(obj, source = "self"){
     else C[k.toLowerCase()] = (C[k.toLowerCase()]||0)+v;
     triggerRelics("statusApplied", { target:"player", status:k, amount:v });
     C.log.push(`You gain ${k}.`);
-    floatFeedback(`${k} +${v}`, "player");
+    pulseElement(".status-row", "anim-status-apply", 280);
+    playSfx("status", { throttleMs:120 });
+    floatFeedback(`${k} +${v}`, "player", "status");
   });
 }
 
@@ -1465,12 +1647,17 @@ function maybeTriggerBossPhase(){
       E.phaseIndex = i;
       E.phaseName = phase.name;
       C.log.push(`${E.name} enters phase: ${phase.name}.`);
-      floatFeedback(phase.name, "center");
+      pulseElement("#enemy", "anim-boss-phase", 420);
+      pulseElement(".intent", "flash-hit", 260);
+      shakeScreen("heavy");
+      playSfx("boss_phase", { throttleMs: 260 });
+      floatFeedback(phase.name, "center", "status");
+      showPhaseOverlay(phase.name);
       if(phase.onEnter?.applyEnemy) applyEnemyStatus(phase.onEnter.applyEnemy);
       if(phase.onEnter?.applyPlayer) applyPlayerStatus(phase.onEnter.applyPlayer, "enemy");
       if(phase.onEnter?.block){
         E.block = (E.block || 0) + phase.onEnter.block;
-        floatFeedback(`+${phase.onEnter.block} Block`, "enemy");
+        floatFeedback(`+${phase.onEnter.block} Block`, "enemy", "block");
       }
       if(phase.onEnter?.special?.id === "burnPunish"){
         if((C.burn || 0) > 0){
@@ -1507,7 +1694,9 @@ function performEnemyMove(move){
       totalTaken += taken;
       if(taken > 0){
         animateActor(".player-combat", "hurt", ANIMATION_PROFILE.player.hurtMs);
-        if(hits <= 2 || i === hits - 1) floatFeedback(`-${taken}`, "player");
+        if(hits <= 2 || i === hits - 1) floatFeedback(`-${taken}`, "player", "damage");
+        if(blocked > 0) floatFeedback(`+${blocked} Block`, "player", "block");
+        pulseElement(".player-combat", "anim-player-hit", 260);
       }
       if(C.counter){
         E.hp -= C.counter;
@@ -1519,12 +1708,14 @@ function performEnemyMove(move){
   if(move.block){
     E.block = (E.block || 0) + move.block;
     C.log.push(`${E.name} gains ${move.block} Block.`);
-    floatFeedback(`+${move.block} Block`, "enemy");
+    floatFeedback(`+${move.block} Block`, "enemy", "block");
   }
   if(move.heal){
     E.hp = Math.min(E.maxHp, E.hp + move.heal);
     C.log.push(`${E.name} heals ${move.heal}.`);
-    floatFeedback(`+${move.heal}`, "enemy");
+    flashElement("#enemy", "flash-heal", 260);
+    playSfx("heal");
+    floatFeedback(`+${move.heal} HP`, "enemy", "heal");
   }
   if(move.applyEnemy || move.selfStatus) applyEnemyStatus({ ...(move.applyEnemy || {}), ...(move.selfStatus || {}) });
   if(move.applyPlayer || move.playerStatus) applyPlayerStatus({ ...(move.applyPlayer || {}), ...(move.playerStatus || {}) }, "enemy");
@@ -1542,7 +1733,7 @@ function performEnemyMove(move){
   }
   if(move.drainEnergyNextTurn){
     C.nextTurnDrain = Math.max(C.nextTurnDrain || 0, move.drainEnergyNextTurn);
-    floatFeedback(`-${move.drainEnergyNextTurn} Energy`, "center");
+    floatFeedback(`-${move.drainEnergyNextTurn} Energy`, "center", "status");
   }
 }
 function resolvePotentialLethalDamage(){
@@ -1553,7 +1744,7 @@ function resolvePotentialLethalDamage(){
     S.combat.ward = 0;
     S.hp = 1;
     relicLog("Mercy Thread saves you from lethal damage.");
-    floatFeedback("Mercy Thread!", "player");
+    floatFeedback("Mercy Thread!", "player", "ward");
     triggerRelics("lethalDamage", {});
     return true;
   }
@@ -1565,41 +1756,44 @@ async function playCard(i){
   let cost = modifyByRelics("modifyCardCost", ca.cost, { card:ca });
   if(cost > C.energy) return;
   C.locked = true;
+  const cardEl = document.querySelector(`.card[data-index="${i}"]`);
+  pulseElement(cardEl, "anim-card-play button-press-pop", 240);
+  playSfx("card_play", { throttleMs: 40 });
   C.energy -= cost; C.hand.splice(i,1);
   C.flags.firstCardPlayed = true;
   C.cardsPlayedThisTurn += 1;
   C.log.push(`Played ${ca.name}.`);
   triggerRelics("cardPlayed", { card:ca, cardId:id });
-  safeCombatUIUpdate();
-  document.querySelector(`.card[data-index="${i}"]`)?.classList.add("activating");
-  await sleep(animDelay(80));
+  await sleep(scaledDelay(90));
   animatePlayerAction(ca);
 
   if(ca.type==="Skill"){
     C.skillsPlayed++;
+    pulseElement(".combat-actions", "anim-block-gain", 240);
     triggerRelics("skillPlayed", { card:ca });
     C.firstSkill = false;
   }
   if(ca.type==="Attack"){
     C.attacksPlayed += 1;
+    pulseElement(".player-combat", "anim-player-attack", 220);
     triggerRelics("attackPlayed", { card:ca });
   }
   if(ca.selfDamage){
     S.hp -= ca.selfDamage; C.bled = true;
-    floatFeedback(`-${ca.selfDamage}`, "player");
+    floatFeedback(`-${ca.selfDamage}`, "player", "damage");
     if(S.weapon==="vein_knife") damageEnemy(2);
   }
   if(ca.gainEnergy) C.energy += ca.gainEnergy;
   if(ca.block) gainBlock(ca.block);
   if(ca.bonusBlockIfCurse && C.hand.some((card)=>getCardInstanceDef(card)?.type === "Curse")) gainBlock(ca.bonusBlockIfCurse);
   if(ca.fortify){ C.fortify += ca.fortify; gainBlock(ca.fortify); }
-  if(ca.heal){ const heal = Math.max(0, ca.heal - (C.blight||0)); S.hp = Math.min(S.maxHp, S.hp + heal); floatFeedback(`+${heal} HP`, "player"); }
+  if(ca.heal){ const heal = Math.max(0, ca.heal - (C.blight||0)); S.hp = Math.min(S.maxHp, S.hp + heal); flashElement(".player-combat", "flash-heal", 260); playSfx("heal"); floatFeedback(`+${heal} HP`, "player", "heal"); }
   if(ca.playerStatus) applyPlayerStatus(ca.playerStatus, "self");
   if(ca.nextAttackBonus) C.bonus += ca.nextAttackBonus;
   if(ca.counter) C.counter += ca.counter;
   if(ca.apply){
     applyEnemyStatus(ca.apply);
-    Object.entries(ca.apply).forEach(([k,v])=>floatFeedback(`${k} +${v}`, "enemy"));
+    Object.entries(ca.apply).forEach(([k,v])=>floatFeedback(`${k} +${v}`, "enemy", "status"));
   }
   if(ca.addDiscard){
     C.discard.push(createCardInstance(ca.addDiscard));
@@ -1635,7 +1829,7 @@ async function playCard(i){
   if(ca.exhaust) { C.exhaust.push(cardInstance); if(C.powers.exhaust_damage) damageEnemy(3); }
   else if(ca.type !== "Power") C.discard.push(cardInstance);
 
-  await sleep(animDelay(220));
+  await sleep(scaledDelay(240));
   if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
   if(C.enemy.hp > 0) maybeTriggerBossPhase();
   if(C.enemy.hp<=0){ C.locked = false; return victory(); }
@@ -1656,14 +1850,18 @@ async function endTurn(){
     const bleedDamage = E.status.Bleed;
     E.hp -= bleedDamage;
     C.log.push(`${E.name} bleeds for ${bleedDamage}.`);
-    floatFeedback(`-${bleedDamage}`, "enemy");
+    pulseElement("#enemy", "anim-bleed-tick", 260);
+    playSfx("bleed_tick");
+    floatFeedback(`Bleed ${bleedDamage}`, "enemy", "bleed");
     E.status.Bleed = Math.max(0, E.status.Bleed - 1);
   }
   if((E.status.Burn || 0) > 0){
     const burnDamage = E.status.Burn;
     E.hp -= burnDamage;
     C.log.push(`${E.name} burns for ${burnDamage}.`);
-    floatFeedback(`-${burnDamage}`, "enemy");
+    pulseElement("#enemy", "anim-burn-tick", 260);
+    playSfx("burn_tick");
+    floatFeedback(`Burn ${burnDamage}`, "enemy", "burn");
     E.status.Burn = Math.max(0, E.status.Burn - 1);
   }
   triggerRelics("turnEnd", { enemy:E });
@@ -1705,7 +1903,8 @@ async function endTurn(){
     const selfBleed = C.bleed;
     S.hp -= selfBleed;
     C.log.push(`You bleed for ${selfBleed}.`);
-    floatFeedback(`-${selfBleed}`, "player");
+    pulseElement(".player-combat", "anim-bleed-tick", 220);
+    floatFeedback(`Bleed ${selfBleed}`, "player", "bleed");
     C.bleed = Math.max(0, C.bleed - 1);
     if(S.hp<=0 && !resolvePotentialLethalDamage()){ C.locked = false; return death(); }
   }
@@ -1716,15 +1915,21 @@ async function endTurn(){
   C.locked = false;
   safeCombatUIUpdate();
 }
-function victory(){
-  const E = S.combat.enemy, boss = E.tier === "boss";
+async function victory(){
+  const C = S.combat;
+  const E = C.enemy, boss = E.tier === "boss";
   const elite = E.tier === "elite";
   const completionNode = S.pendingNodeCompletion;
+  C.locked = true;
+  pulseElement("#enemy", "anim-death", 420);
+  playSfx("enemy_death");
+  await sleep(scaledDelay(340));
   S.kills++; gainGold(elite ? 65 : boss ? 100 : 30);
   S.combat = null;
   if(completionNode){
     const source = boss ? "boss" : elite ? "elite" : "combat";
     pendingVictoryRewards = { nodeId:completionNode, source, summary: boss ? "Boss defeated." : "Won battle.", showCardAfterRelic: source !== "combat" };
+    await sleep(scaledDelay(120));
     if(source === "combat") showCardReward(source, { nodeId: completionNode, summary: pendingVictoryRewards.summary });
     else showRelicReward(source);
     return;
@@ -1758,8 +1963,10 @@ function showRelicReward(source = "elite"){
   const build = getBuildSummary();
   G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${source.toUpperCase()} Relic Reward</div><div class="small">Choose a relic to shape your run.</div></div><div><span class="pill">Relics ${S.relics.length}</span></div></div>
     <div class="reward-wrap"><p class="small">${pendingVictoryRewards?.summary || "Victory."}</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p>
-    <div class="reward-grid">${choices.map((id)=>`<button onclick="pickRelicReward('${id}')">${renderRelicSummary(id)}</button>`).join("")}</div>
+    <div class="reward-grid">${choices.map((id)=>`<button class="reward-choice" onclick="pickRelicReward('${id}')">${renderRelicSummary(id)}</button>`).join("")}</div>
     <div class="reward-actions"><button onclick="showBuildPanel()">View Build</button><button onclick="skipRelicReward()">Skip</button></div></div></div>`;
+  applyButtonFeedback(G);
+  animateRewardReveal("relic");
 }
 function pickRelicReward(relicId){
   if(!DB.relics[relicId]) return;
@@ -1835,6 +2042,8 @@ function showCardReward(source = "combat", options = {}){
   G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${sourceLabel} Reward</div><div class="small">${pick(REWARD_FLAVOR)}</div></div><div><span class="pill">Deck ${S.deck.length}</span><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div>
     <div class="reward-wrap"><p class="small">${pendingVictoryRewards.summary} Choose one memory or pass.</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p><div class="reward-grid">${choices.map((id)=>`<button class="reward-choice" onclick="pickRewardCard('${id}')">${renderCardSummary(createCardInstance(id))}</button>`).join("")}</div>
     <div class="reward-actions"><button onclick="showDeck()">View Deck</button><button onclick="showBuildPanel()">Build</button><button onclick="skipCardReward()">Skip</button></div></div></div>`;
+  applyButtonFeedback(G);
+  animateRewardReveal("card");
 }
 function pickRewardCard(cardId){
   if(!DB.cards[cardId]) return toast("No cards available.");
@@ -1851,9 +2060,11 @@ function skipCardReward(notify = true){
   completeCurrentNode({ nodeId, text:summary });
   drawWorld();
 }
-function death(){
+async function death(){
   const mem = pick(S.deck);
   const memId = cardIdOf(mem);
+  pulseElement(".player-combat", "anim-death", 520);
+  await sleep(scaledDelay(420));
   S.memories.push(mem); S.deaths++; S.hp = S.maxHp; S.combat = null;
   S.pendingNodeCompletion = null;
   S.mapEncounter = null;
@@ -1882,5 +2093,9 @@ window.openCompendium = openCompendium;
 window.openRunMenu = openRunMenu;
 window.startNewRun = startNewRun;
 window.toggleSetting = toggleSetting;
+window.setSfxEnabled = setSfxEnabled;
+window.setSfxVolume = setSfxVolume;
+window.preloadSfxManifest = preloadSfxManifest;
+window.playSfx = playSfx;
 window.abandonRun = abandonRun;
 loadData();

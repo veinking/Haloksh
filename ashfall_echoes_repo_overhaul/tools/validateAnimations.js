@@ -6,21 +6,40 @@ const appJs = fs.readFileSync(path.join(root, "src", "js", "app.js"), "utf8");
 const css = fs.readFileSync(path.join(root, "src", "styles", "main.css"), "utf8");
 
 const jsRequired = [
-  "const ANIMATION_PROFILE",
-  "function animatePlayerAction",
-  "function animateEnemyIntent",
-  "function pulseStage"
+  "function getSettings()",
+  "function isReducedMotion()",
+  "function shakeScreen(intensity = \"light\")",
+  "async function hitStop(ms = 70)",
+  "function playSfx(name, options = {})",
+  "function queueJuice(fn)",
+  "async function runJuiceSequence(steps = [])",
+  "function floatFeedback(text, target = \"enemy\", type = \"status\")"
 ];
 
 const cssRequired = [
-  ".player-combat.attack",
-  ".player-combat.cast",
-  ".player-combat.hurt",
-  ".enemy.attack",
-  ".enemy.chant",
-  ".embers",
-  ".fog",
-  "@media (prefers-reduced-motion:reduce)"
+  ".anim-card-play",
+  ".anim-player-attack",
+  ".anim-enemy-hit",
+  ".anim-player-hit",
+  ".anim-block-gain",
+  ".anim-heal",
+  ".anim-status-apply",
+  ".anim-burn-tick",
+  ".anim-bleed-tick",
+  ".anim-death",
+  ".anim-boss-phase",
+  ".screen-shake-light",
+  ".screen-shake-medium",
+  ".screen-shake-heavy",
+  ".flash-hit",
+  ".flash-heal",
+  ".flash-block",
+  ".flash-ward",
+  ".reward-reveal",
+  ".relic-reveal",
+  ".node-unlock-pulse",
+  ".button-press-pop",
+  "@media (prefers-reduced-motion: reduce)"
 ];
 
 const missing = [];
