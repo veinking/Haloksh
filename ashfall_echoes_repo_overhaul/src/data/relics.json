@@ -1,83 +1,268 @@
 {
   "dull_whetstone": {
-    "name": "Dull Whetstone",
+    "name": "War-Breath Charm",
     "rarity": "Common",
-    "text": "First Attack each combat deals +3 damage.",
-    "trigger": "first_attack_damage",
+    "text": "First attack each combat deals +3 damage.",
+    "archetypes": [
+      "strength"
+    ],
+    "stackable": false,
+    "hook": "modifyDamageFirstAttack",
     "value": 3
   },
   "pilgrims_nail": {
-    "name": "Pilgrim's Nail",
+    "name": "Saint's Buckler",
     "rarity": "Common",
-    "text": "Start each combat with 3 Block.",
-    "trigger": "combat_start_block",
+    "text": "The first time each combat you gain Block, gain +3 Block.",
+    "archetypes": [
+      "block"
+    ],
+    "stackable": false,
+    "hook": "firstBlockBonus",
     "value": 3
   },
   "cracked_charm": {
-    "name": "Cracked Charm",
+    "name": "Split-Second Charm",
     "rarity": "Common",
-    "text": "First Skill each combat costs 0.",
-    "trigger": "first_skill_free"
+    "text": "First card played each combat costs 0.",
+    "archetypes": [
+      "tempo"
+    ],
+    "stackable": false,
+    "hook": "firstCardFree"
   },
   "rusted_fang": {
-    "name": "Rusted Fang",
+    "name": "Bloodglass Thorn",
     "rarity": "Uncommon",
-    "text": "Multi-hit attacks deal +1 per hit.",
-    "trigger": "multi_hit_bonus",
+    "text": "Whenever you apply Bleed, deal 1 bonus damage to that enemy.",
+    "archetypes": [
+      "bleed"
+    ],
+    "stackable": false,
+    "hook": "bleedThorn",
     "value": 1
   },
   "bellplate_charm": {
-    "name": "Bellplate Charm",
+    "name": "Iron Psalm",
     "rarity": "Uncommon",
-    "text": "Every 10 Block gained, deal 3 to enemy.",
-    "trigger": "block_threshold_damage",
-    "threshold": 10,
-    "value": 3
+    "text": "Every 3rd Skill card grants +5 Block.",
+    "archetypes": [
+      "block"
+    ],
+    "stackable": false,
+    "hook": "thirdSkillBlock",
+    "value": 5
   },
   "bone_prayer_beads": {
-    "name": "Bone Prayer Beads",
+    "name": "Ashen Spur",
     "rarity": "Uncommon",
-    "text": "Every third Skill gives 1 Energy.",
-    "trigger": "third_skill_energy",
+    "text": "Gain +1 energy on the first turn of each combat.",
+    "archetypes": [
+      "tempo"
+    ],
+    "stackable": false,
+    "hook": "firstTurnEnergy",
     "value": 1
   },
   "vein_drinker": {
-    "name": "Vein Drinker",
+    "name": "Charred Wick",
     "rarity": "Rare",
-    "text": "Heal 2 whenever you play an Attack. Max HP -10.",
-    "trigger": "attack_heal",
-    "value": 2,
-    "maxHpPenalty": 10
+    "text": "Attacks deal +2 damage to enemies with Burn.",
+    "archetypes": [
+      "burn"
+    ],
+    "stackable": false,
+    "hook": "attackVsBurned",
+    "value": 2
   },
   "lantern_heart": {
-    "name": "Lantern Heart",
+    "name": "Mercy Thread",
     "rarity": "Rare",
-    "text": "Once per combat, survive lethal damage at 1 HP.",
-    "trigger": "prevent_lethal"
+    "text": "First lethal damage each run is prevented if you have Ward. Consume all Ward and survive at 1 HP.",
+    "archetypes": [
+      "ward"
+    ],
+    "stackable": false,
+    "hook": "wardLethalSave"
   },
   "hollow_crown": {
-    "name": "Hollow Crown",
+    "name": "Debt Bell",
     "rarity": "Cursed",
-    "text": "+1 Energy each turn. Start combat with 2 Dissonance.",
-    "trigger": "energy_plus_curses",
-    "energy": 1,
+    "text": "At the start of combat, add a temporary Dissonance to your hand, then draw 1.",
+    "archetypes": [
+      "curse",
+      "tempo"
+    ],
+    "stackable": false,
+    "hook": "combatStartDebtBell",
     "curses": [
-      "dissonance",
       "dissonance"
     ]
   },
   "infant_bell": {
-    "name": "Infant Bell",
+    "name": "Cracked Hymnal",
     "rarity": "Cursed",
-    "text": "Drawing a Curse grants 1 Energy.",
-    "trigger": "curse_draw_energy",
-    "value": 1
+    "text": "Curse cards cost 0 the first time each combat.",
+    "archetypes": [
+      "curse"
+    ],
+    "stackable": false,
+    "hook": "firstCurseFree"
   },
   "mercy_root": {
-    "name": "Mercy Root",
+    "name": "Stone-Vow Rosary",
     "rarity": "Cursed",
-    "text": "Heal 2 each turn. Add Rot after boss fights.",
-    "trigger": "turn_heal_boss_rot",
+    "text": "If you end your turn with Block, retain 3 Block next turn.",
+    "archetypes": [
+      "block",
+      "ward"
+    ],
+    "stackable": false,
+    "hook": "retainBlock",
+    "value": 3
+  },
+  "red_thread_spool": {
+    "name": "Red Thread Spool",
+    "rarity": "Uncommon",
+    "text": "Bleed ticks 1 additional time on elite and boss enemies.",
+    "archetypes": [
+      "bleed"
+    ],
+    "stackable": false,
+    "hook": "extraBleedTickBoss"
+  },
+  "butchers_prayer": {
+    "name": "Butcher's Prayer",
+    "rarity": "Rare",
+    "text": "At the start of combat, apply 2 Bleed to all enemies.",
+    "archetypes": [
+      "bleed"
+    ],
+    "stackable": false,
+    "hook": "combatStartBleed",
     "value": 2
+  },
+  "hollow_ink": {
+    "name": "Hollow Ink",
+    "rarity": "Uncommon",
+    "text": "Whenever a curse is added to your deck during combat, gain 1 Strength.",
+    "archetypes": [
+      "curse",
+      "strength"
+    ],
+    "stackable": false,
+    "hook": "curseGainStrength",
+    "value": 1
+  },
+  "broken_metronome": {
+    "name": "Broken Metronome",
+    "rarity": "Uncommon",
+    "text": "Every 4th card played each turn deals 4 bonus damage.",
+    "archetypes": [
+      "tempo"
+    ],
+    "stackable": false,
+    "hook": "fourthCardDamage",
+    "value": 4
+  },
+  "ember_nail": {
+    "name": "Ember Nail",
+    "rarity": "Uncommon",
+    "text": "Whenever you apply Burn, apply +1 additional Burn.",
+    "archetypes": [
+      "burn"
+    ],
+    "stackable": false,
+    "hook": "burnPlusOne",
+    "value": 1
+  },
+  "furnace_saint": {
+    "name": "Furnace Saint",
+    "rarity": "Rare",
+    "text": "At end of your turn, deal damage equal to enemy Burn, then reduce Burn by 1.",
+    "archetypes": [
+      "burn"
+    ],
+    "stackable": false,
+    "hook": "furnaceTick"
+  },
+  "wax_lantern": {
+    "name": "Wax Lantern",
+    "rarity": "Common",
+    "text": "Start combat with 1 Ward.",
+    "archetypes": [
+      "ward"
+    ],
+    "stackable": false,
+    "hook": "startWard",
+    "value": 1
+  },
+  "pale_seal": {
+    "name": "Pale Seal",
+    "rarity": "Uncommon",
+    "text": "When Ward prevents a debuff, gain 4 Block.",
+    "archetypes": [
+      "ward",
+      "block"
+    ],
+    "stackable": false,
+    "hook": "debuffBlockedBlock",
+    "value": 4
+  },
+  "beast_crown_splinter": {
+    "name": "Beast-Crown Splinter",
+    "rarity": "Uncommon",
+    "text": "Every 3 attacks played gives +1 Strength.",
+    "archetypes": [
+      "strength"
+    ],
+    "stackable": false,
+    "hook": "thirdAttackStrength",
+    "value": 1
+  },
+  "red_muscle_idol": {
+    "name": "Red Muscle Idol",
+    "rarity": "Rare",
+    "text": "Whenever you gain Strength, also gain 2 Block.",
+    "archetypes": [
+      "strength",
+      "block"
+    ],
+    "stackable": false,
+    "hook": "strengthGainBlock",
+    "value": 2
+  },
+  "quiet_needle": {
+    "name": "Quiet Needle",
+    "rarity": "Common",
+    "text": "Weak applied by cards lasts +1 longer.",
+    "archetypes": [
+      "control"
+    ],
+    "stackable": false,
+    "hook": "weakPlusOne"
+  },
+  "blindfold_charm": {
+    "name": "Blindfold Charm",
+    "rarity": "Common",
+    "text": "First enemy attack each combat deals 3 less damage.",
+    "archetypes": [
+      "control"
+    ],
+    "stackable": false,
+    "hook": "firstEnemyAttackDown",
+    "value": 3
+  },
+  "still_hand": {
+    "name": "Still Hand",
+    "rarity": "Uncommon",
+    "text": "If you play no attacks on a turn, draw 1 extra card next turn.",
+    "archetypes": [
+      "control",
+      "tempo"
+    ],
+    "stackable": false,
+    "hook": "noAttackDraw",
+    "value": 1
   }
 }
