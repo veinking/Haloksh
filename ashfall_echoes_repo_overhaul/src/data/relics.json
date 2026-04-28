@@ -1,0 +1,83 @@
+{
+  "dull_whetstone": {
+    "name": "Dull Whetstone",
+    "rarity": "Common",
+    "text": "First Attack each combat deals +3 damage.",
+    "trigger": "first_attack_damage",
+    "value": 3
+  },
+  "pilgrims_nail": {
+    "name": "Pilgrim's Nail",
+    "rarity": "Common",
+    "text": "Start each combat with 3 Block.",
+    "trigger": "combat_start_block",
+    "value": 3
+  },
+  "cracked_charm": {
+    "name": "Cracked Charm",
+    "rarity": "Common",
+    "text": "First Skill each combat costs 0.",
+    "trigger": "first_skill_free"
+  },
+  "rusted_fang": {
+    "name": "Rusted Fang",
+    "rarity": "Uncommon",
+    "text": "Multi-hit attacks deal +1 per hit.",
+    "trigger": "multi_hit_bonus",
+    "value": 1
+  },
+  "bellplate_charm": {
+    "name": "Bellplate Charm",
+    "rarity": "Uncommon",
+    "text": "Every 10 Block gained, deal 3 to enemy.",
+    "trigger": "block_threshold_damage",
+    "threshold": 10,
+    "value": 3
+  },
+  "bone_prayer_beads": {
+    "name": "Bone Prayer Beads",
+    "rarity": "Uncommon",
+    "text": "Every third Skill gives 1 Energy.",
+    "trigger": "third_skill_energy",
+    "value": 1
+  },
+  "vein_drinker": {
+    "name": "Vein Drinker",
+    "rarity": "Rare",
+    "text": "Heal 2 whenever you play an Attack. Max HP -10.",
+    "trigger": "attack_heal",
+    "value": 2,
+    "maxHpPenalty": 10
+  },
+  "lantern_heart": {
+    "name": "Lantern Heart",
+    "rarity": "Rare",
+    "text": "Once per combat, survive lethal damage at 1 HP.",
+    "trigger": "prevent_lethal"
+  },
+  "hollow_crown": {
+    "name": "Hollow Crown",
+    "rarity": "Cursed",
+    "text": "+1 Energy each turn. Start combat with 2 Dissonance.",
+    "trigger": "energy_plus_curses",
+    "energy": 1,
+    "curses": [
+      "dissonance",
+      "dissonance"
+    ]
+  },
+  "infant_bell": {
+    "name": "Infant Bell",
+    "rarity": "Cursed",
+    "text": "Drawing a Curse grants 1 Energy.",
+    "trigger": "curse_draw_energy",
+    "value": 1
+  },
+  "mercy_root": {
+    "name": "Mercy Root",
+    "rarity": "Cursed",
+    "text": "Heal 2 each turn. Add Rot after boss fights.",
+    "trigger": "turn_heal_boss_rot",
+    "value": 2
+  }
+}

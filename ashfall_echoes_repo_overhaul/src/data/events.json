@@ -1,0 +1,17 @@
+[
+  {
+    "id": "grave",
+    "title": "Grave of Yourself",
+    "desc": "A grave waits where no body was buried. It may hold a memory from a previous death."
+  },
+  {
+    "id": "well",
+    "title": "The Weeping Well",
+    "desc": "The water whispers your name, then says it wrong. Drink for healing, listen for memory, or leave."
+  },
+  {
+    "id": "candle_girl",
+    "title": "The Candle Girl",
+    "desc": "A faceless child holds a candle that leans toward your chest."
+  }
+]

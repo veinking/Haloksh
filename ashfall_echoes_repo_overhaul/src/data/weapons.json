@@ -1,0 +1,90 @@
+{
+  "chipped_blade": {
+    "name": "Chipped Blade",
+    "desc": "Balanced pilgrim steel. Flexible and beginner friendly.",
+    "passive": "First Attack each combat deals +2.",
+    "starter": [
+      "strike",
+      "strike",
+      "strike",
+      "strike",
+      "guard",
+      "guard",
+      "guard",
+      "guard",
+      "quick_slash",
+      "old_technique"
+    ],
+    "unlock": "default"
+  },
+  "bell_hammer": {
+    "name": "Bell Hammer",
+    "desc": "Slow penitence weapon. Big hits and Weak.",
+    "passive": "Every third Attack applies 1 Weak.",
+    "starter": [
+      "strike",
+      "strike",
+      "strike",
+      "strike",
+      "guard",
+      "guard",
+      "guard",
+      "guard",
+      "bell_slam",
+      "brace"
+    ],
+    "fallback_cards": {
+      "bell_slam": {
+        "name": "Bell Slam",
+        "type": "Attack",
+        "cost": 2,
+        "rarity": "Basic",
+        "tags": [
+          "Hammer"
+        ],
+        "text": "Deal 18. Apply 1 Weak.",
+        "damage": 18,
+        "apply": {
+          "Weak": 1
+        }
+      }
+    },
+    "unlock": "default"
+  },
+  "vein_knife": {
+    "name": "Vein Knife",
+    "desc": "Pain-as-fuel weapon. HP becomes tempo.",
+    "passive": "Whenever you lose HP on your turn, deal 2 to enemy.",
+    "starter": [
+      "strike",
+      "strike",
+      "strike",
+      "strike",
+      "guard",
+      "guard",
+      "guard",
+      "guard",
+      "open_vein",
+      "red_carve"
+    ],
+    "unlock": "default"
+  },
+  "wax_lantern": {
+    "name": "Wax Lantern",
+    "desc": "Control, draw, Ward, and curse resistance.",
+    "passive": "First Skill each turn grants 1 Ward.",
+    "starter": [
+      "strike",
+      "strike",
+      "strike",
+      "guard",
+      "guard",
+      "guard",
+      "lantern_step",
+      "lantern_light",
+      "hollow_bind",
+      "burn_the_past"
+    ],
+    "unlock": "after_false_ending"
+  }
+}
