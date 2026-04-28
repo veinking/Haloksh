@@ -4,7 +4,8 @@ const DATA_PATHS = {
   relics: "./src/data/relics.json",
   weapons: "./src/data/weapons.json",
   enemies: "./src/data/enemies.json",
-  events: "./src/data/events.json"
+  events: "./src/data/events.json",
+  loadouts: "./src/data/loadouts.json"
 };
 
 const G = document.getElementById("game");
@@ -38,7 +39,12 @@ const STATUS_INFO = {
 };
 
 const SAVE_VERSION = 3;
-const SETTINGS_KEY = "ashfall_repo_settings";
+const SETTINGS_KEY = "ashfall_settings";
+const RUN_SAVE_KEY = "ashfall_run_save";
+const META_PROFILE_KEY = "ashfall_meta_profile";
+const META_VERSION = 1;
+const MAX_RUN_HISTORY = 20;
+const MAX_HOLLOW_DEPTH = 5;
 const SETTINGS_DEFAULTS = {
   reducedMotion: false,
   textSize: "normal",
@@ -64,6 +70,7 @@ const KEYWORD_INFO = {
 };
 let currentScreen = "title";
 let lastSavedAt = null;
+let M = null;
 
 const ANIMATION_PROFILE = {
   player: {
@@ -293,9 +300,250 @@ function duplicateCardInDeck(index){
   return copy;
 }
 
+function defaultMetaProfile(){
+  return {
+    profileVersion: META_VERSION,
+    totalRuns: 0,
+    wins: 0,
+    losses: 0,
+    bestAct: 0,
+    bestFloor: 0,
+    totalEnemiesDefeated: 0,
+    totalElitesDefeated: 0,
+    totalBossesDefeated: 0,
+    totalCardsPicked: 0,
+    totalRelicsFound: 0,
+    discoveredCards: ["strike", "guard"],
+    discoveredRelics: ["dull_whetstone"],
+    encounteredEnemies: [],
+    unlockedCards: [],
+    unlockedRelics: [],
+    unlockedLoadouts: ["ashblade"],
+    difficultyUnlocked: 0,
+    achievementCounters: {
+      bleedAppliedTotal: 0,
+      burnAppliedTotal: 0,
+      blockGainedTotal: 0,
+      wardBlockedTotal: 0,
+      cursesAddedTotal: 0,
+      cardsPlayedTotal: 0,
+      attacksPlayedTotal: 0,
+      skillsPlayedTotal: 0,
+      perfectCombats: 0,
+      lowHPVictories: 0
+    },
+    runHistory: [],
+    latestRunResult: null
+  };
+}
+
+function migrateMetaProfile(meta){
+  if(!meta || typeof meta !== "object") return defaultMetaProfile();
+  const merged = { ...defaultMetaProfile(), ...meta };
+  merged.profileVersion = META_VERSION;
+  merged.discoveredCards = [...new Set(Array.isArray(merged.discoveredCards) ? merged.discoveredCards : [])];
+  merged.discoveredRelics = [...new Set(Array.isArray(merged.discoveredRelics) ? merged.discoveredRelics : [])];
+  merged.encounteredEnemies = [...new Set(Array.isArray(merged.encounteredEnemies) ? merged.encounteredEnemies : [])];
+  merged.unlockedCards = [...new Set(Array.isArray(merged.unlockedCards) ? merged.unlockedCards : [])];
+  merged.unlockedRelics = [...new Set(Array.isArray(merged.unlockedRelics) ? merged.unlockedRelics : [])];
+  merged.unlockedLoadouts = [...new Set(Array.isArray(merged.unlockedLoadouts) ? merged.unlockedLoadouts : ["ashblade"])];
+  merged.difficultyUnlocked = Math.max(0, Math.min(MAX_HOLLOW_DEPTH, Number(merged.difficultyUnlocked) || 0));
+  merged.runHistory = (Array.isArray(merged.runHistory) ? merged.runHistory : []).slice(0, MAX_RUN_HISTORY);
+  merged.achievementCounters = { ...defaultMetaProfile().achievementCounters, ...(merged.achievementCounters || {}) };
+  return merged;
+}
+
+function loadMetaProfile(){
+  try {
+    M = migrateMetaProfile(JSON.parse(localStorage.getItem(META_PROFILE_KEY) || "null"));
+  } catch {
+    M = defaultMetaProfile();
+  }
+  return M;
+}
+
+function persistMetaProfile(){
+  if(!M) return;
+  localStorage.setItem(META_PROFILE_KEY, JSON.stringify(M));
+}
+
+function markDiscovered(type, id){
+  if(!M || !id) return;
+  const key = type === "card" ? "discoveredCards" : type === "relic" ? "discoveredRelics" : "encounteredEnemies";
+  if(!key || !Array.isArray(M[key])) return;
+  if(!M[key].includes(id)) M[key].push(id);
+}
+
+function isUnlocked(type, id){
+  if(!id) return false;
+  if(type === "loadout") return (M?.unlockedLoadouts || []).includes(id);
+  if(type === "card"){
+    if(DB.cards?.[id]?.unlock === "default") return true;
+    return !(DB.cards?.[id]?.unlock === "meta") || (M?.unlockedCards || []).includes(id);
+  }
+  if(type === "relic"){
+    if(DB.relics?.[id]?.unlock === "default") return true;
+    return !(DB.relics?.[id]?.unlock === "meta") || (M?.unlockedRelics || []).includes(id);
+  }
+  return false;
+}
+
+function grantUnlock(type, id){
+  if(!id || !M) return false;
+  const key = type === "card" ? "unlockedCards" : type === "relic" ? "unlockedRelics" : type === "loadout" ? "unlockedLoadouts" : null;
+  if(!key) return false;
+  if(!Array.isArray(M[key])) M[key] = [];
+  if(M[key].includes(id)) return false;
+  M[key].push(id);
+  return true;
+}
+
+function getDifficultyLevel(){
+  return Math.max(0, Math.min(MAX_HOLLOW_DEPTH, Number(S?.difficulty ?? 0)));
+}
+
+function getShopPriceMultiplier(){
+  return getDifficultyLevel() >= 4 ? 1.15 : 1;
+}
+
+function getStartingMaxHPModifier(){
+  return getDifficultyLevel() >= 3 ? -5 : 0;
+}
+
+function applyDifficultyToEnemy(enemyDef, nodeType = "combat"){
+  const out = clone(enemyDef);
+  if(getDifficultyLevel() >= 1){
+    out.hp = Math.max(1, Math.round(out.hp * 1.1));
+  }
+  if(getDifficultyLevel() >= 2 && (nodeType === "elite" || out.tier === "elite")){
+    (out.moves || []).forEach((move)=>{
+      if(move.damage) move.damage = Math.max(1, Math.round(move.damage * 1.15));
+    });
+  }
+  return out;
+}
+
+function applyBossDifficultyModifiers(){
+  if(!S?.combat?.enemy) return;
+  if(getDifficultyLevel() >= 5 && S.combat.enemy.tier === "boss"){
+    S.combat.enemy.status.Strength = (S.combat.enemy.status.Strength || 0) + 1;
+    S.combat.log.push("Hollow Depth pressure empowers the boss (+1 Strength).");
+  }
+}
+
+function startRunStats(){
+  S.runFinished = false;
+  S.runStats = {
+    startedAt: Date.now(),
+    result: null,
+    enemiesDefeated: 0,
+    elitesDefeated: 0,
+    bossesDefeated: 0,
+    cardsPicked: 0,
+    relicsFound: 0,
+    bossDefeated: false,
+    unlocksEarned: []
+  };
+}
+
+function updateRunStats(eventName, payload = {}){
+  if(!S?.runStats) return;
+  const stats = S.runStats;
+  if(eventName === "enemy_defeated"){
+    stats.enemiesDefeated += 1;
+    if(payload.tier === "elite") stats.elitesDefeated += 1;
+    if(payload.tier === "boss"){
+      stats.bossesDefeated += 1;
+      stats.bossDefeated = true;
+    }
+  }
+  if(eventName === "card_picked") stats.cardsPicked += 1;
+  if(eventName === "relic_found") stats.relicsFound += 1;
+}
+
+function checkUnlocks(){
+  const gained = [];
+  if(M.wins >= 1 && grantUnlock("loadout", "lantern_guard")) gained.push("Lantern Guard loadout");
+  if(M.totalElitesDefeated >= 3 && grantUnlock("loadout", "red_hymn")) gained.push("Red Hymn loadout");
+  if((M.achievementCounters.bleedAppliedTotal || 0) >= 50 && grantUnlock("card", "blood_pact")) gained.push("Card: Blood Pact");
+  if((M.achievementCounters.blockGainedTotal || 0) >= 200 && grantUnlock("relic", "bellplate_charm")) gained.push("Relic: Bellplate Charm");
+  if((S.runStats?.bossDefeated) && M.difficultyUnlocked < 1) M.difficultyUnlocked = 1;
+  if((S.runStats?.result === "win") && getDifficultyLevel() === M.difficultyUnlocked && M.difficultyUnlocked < MAX_HOLLOW_DEPTH){
+    M.difficultyUnlocked += 1;
+    gained.push(`Hollow Depth ${M.difficultyUnlocked} unlocked`);
+  }
+  return gained;
+}
+
+function finishRun(result = "loss"){
+  if(!S?.runStats || S.runFinished) return;
+  S.runFinished = true;
+  S.runStats.result = result;
+  const build = getBuildSummary();
+  const run = {
+    id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+    result,
+    difficulty: getDifficultyLevel(),
+    act: S?.map?.act || 1,
+    floor: S?.map?.floor || 1,
+    bossDefeated: Boolean(S.runStats.bossDefeated),
+    finalHp: S.hp,
+    maxHp: S.maxHp,
+    deckSize: S.deck.length,
+    relicCount: S.relics.length,
+    gold: S.gold,
+    archetypes: build.top,
+    enemiesDefeated: S.runStats.enemiesDefeated,
+    elitesDefeated: S.runStats.elitesDefeated,
+    bossesDefeated: S.runStats.bossesDefeated,
+    cardsPicked: S.runStats.cardsPicked,
+    relicsFound: S.runStats.relicsFound,
+    durationSec: Math.round((Date.now() - S.runStats.startedAt) / 1000),
+    timestamp: Date.now(),
+    finalDeck: clone(S.deck),
+    finalRelics: clone(S.relics),
+    unlocksEarned: []
+  };
+  M.bestAct = Math.max(M.bestAct || 0, run.act);
+  M.bestFloor = Math.max(M.bestFloor || 0, run.floor);
+  M.totalEnemiesDefeated += run.enemiesDefeated;
+  M.totalElitesDefeated += run.elitesDefeated;
+  M.totalBossesDefeated += run.bossesDefeated;
+  M.totalCardsPicked += run.cardsPicked;
+  M.totalRelicsFound += run.relicsFound;
+  if(result === "win") M.wins += 1;
+  if(result === "loss" || result === "abandoned") M.losses += 1;
+  M.latestRunResult = result;
+  run.unlocksEarned = checkUnlocks();
+  S.runStats.unlocksEarned = run.unlocksEarned;
+  M.runHistory = [run, ...(M.runHistory || [])].slice(0, MAX_RUN_HISTORY);
+  persistMetaProfile();
+}
+
+function showRunSummary(result = "loss"){
+  const latest = M?.runHistory?.[0];
+  if(!latest) return title();
+  setScreen("run-end");
+  G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${result.toUpperCase()}</div><div class="small">Hollow Depth ${latest.difficulty}</div></div><div><span class="pill">Act ${latest.act} · Floor ${latest.floor}</span></div></div>
+    <div class="reward-wrap">
+      <p class="small">Enemies ${latest.enemiesDefeated} · Elites ${latest.elitesDefeated} · Bosses ${latest.bossesDefeated}</p>
+      <p class="small">Cards picked ${latest.cardsPicked} · Relics found ${latest.relicsFound} · Final deck ${latest.deckSize}</p>
+      <p class="small">Archetypes: ${(latest.archetypes || []).join(" / ") || "Unfocused"}</p>
+      <p class="small">Unlocks: ${(latest.unlocksEarned || []).join(", ") || "None this run"}</p>
+      <div class="reward-actions">
+        <button onclick="startNewRun()">New Run</button>
+        <button onclick="openRunHistory()">Run History</button>
+        <button onclick="openFinalDeckViewer()">View Final Deck</button>
+        <button onclick="title()">Title</button>
+      </div>
+    </div>
+  </div>`;
+}
+
 async function loadData(){
   const entries = await Promise.all(Object.entries(DATA_PATHS).map(async ([k,p]) => [k, await fetch(p).then(r=>r.json())]));
   DB = Object.fromEntries(entries);
+  loadMetaProfile();
   fresh();
 }
 
@@ -334,6 +582,7 @@ function renderRunHud(){
     <span>HP ${S.hp}/${S.maxHp}</span>
     <span>Echoes ${S.gold}</span>
     <span>Act ${S?.map?.act || 1}</span>
+    <span>Depth ${getDifficultyLevel()}</span>
     <span>Deck ${S.deck?.length || 0}</span>
     <span>Relics ${S.relics?.length || 0}</span>
     ${lastSavedAt ? `<span class="save-indicator">Saved ${lastSavedAt}</span>` : ""}
@@ -354,6 +603,7 @@ function renderBottomNav(){
 }
 
 function fresh(){
+  if(!M) loadMetaProfile();
   S = {
     body:null, weapon:null,
     hp:72, maxHp:72, gold:95,
@@ -374,6 +624,10 @@ function fresh(){
     tempNextCombatCards:[],
     eventMeta:{},
     settings: loadSettings(),
+    difficulty: 0,
+    loadoutId: "ashblade",
+    runStats: null,
+    runFinished: false,
     saveVersion: SAVE_VERSION
   };
   applySettings();
@@ -382,26 +636,42 @@ function fresh(){
 
 function title(){
   setScreen("title");
-  const hasSave = Boolean(localStorage.getItem("ashfall_repo_save"));
+  const hasSave = Boolean(localStorage.getItem(RUN_SAVE_KEY) || localStorage.getItem("ashfall_repo_save"));
+  const unlockedLoadouts = (M?.unlockedLoadouts || []).length;
+  const latest = M?.latestRunResult ? `Latest: ${M.latestRunResult}` : "Latest: —";
   G.innerHTML = `<div class="title app-title"><div class="panel title-panel">
     <p class="small">Version 0.7.0 · Mobile Build</p>
     <h1>Ashfall: Echoes of the Hollow</h1>
     <p class="tagline">“Carry fire through the things that remember you.”</p>
     <button ${hasSave ? "" : "disabled"} onclick="loadSave()">Continue</button>
     <button onclick="startNewRun()">New Run</button>
+    <button onclick="openRunHistory()">Run History</button>
     <button onclick="openCompendium()">Codex</button>
     <button onclick="openSettings()">Settings</button>
+    <button onclick="openResetMenu()">Resets</button>
+    <div class="small">Runs ${M?.totalRuns || 0} · Wins ${M?.wins || 0} · Highest Hollow Depth ${M?.difficultyUnlocked || 0}</div>
+    <div class="small">${latest} · Loadouts ${unlockedLoadouts}/${Object.keys(DB.loadouts || {}).length || 1}</div>
     <p class="small">Ashfall repo overhaul build</p>
   </div></div>`;
 }
 
 function startNewRun(){
-  if(localStorage.getItem("ashfall_repo_save") && !confirm("Start a fresh run? Existing save will be replaced once you save.")) return;
+  if((localStorage.getItem(RUN_SAVE_KEY) || localStorage.getItem("ashfall_repo_save")) && !confirm("Start a fresh run? Existing save will be replaced once you save.")) return;
   fresh();
   chars();
 }
 
 function chars(){
+  const depthOptions = Array.from({ length: (M?.difficultyUnlocked || 0) + 1 }, (_, idx)=>idx).map((depth)=>`<option value="${depth}">Hollow Depth ${depth}</option>`).join("");
+  const loadouts = Object.values(DB.loadouts || {}).filter((loadout)=>isUnlocked("loadout", loadout.id));
+  const loadoutButtons = loadouts.map((loadout)=>`
+    <div class="choice">
+      <h3>${loadout.name}</h3>
+      <p>${loadout.description}</p>
+      <p class="small">Deck: ${(loadout.startingDeck || []).join(", ")}</p>
+      <button onclick="selectLoadout('${loadout.id}')">Use ${loadout.name}</button>
+    </div>
+  `).join("");
   const weaponCards = Object.entries(DB.weapons).filter(([id,w])=>w.unlock==="default" || S.falseEnding).map(([id,w]) => `
     <div class="choice">
       <h3>${w.name}</h3>
@@ -412,24 +682,40 @@ function chars(){
     </div>`).join("");
   G.innerHTML = `<div class="screen">
     <div class="top"><div class="logo">Choose Hollowbound</div><span class="pill">Repo Build</span></div>
-    <div style="padding:14px;overflow:auto"><div class="choice-grid">${weaponCards}</div></div>
+    <div style="padding:14px;overflow:auto">
+      <label class="small">Hollow Depth <select onchange="setDifficulty(this.value)">${depthOptions}</select></label>
+      <h3>Starter Styles</h3>
+      <div class="choice-grid">${loadoutButtons || `<div class="small">No additional loadouts unlocked yet.</div>`}</div>
+      <h3>Weapon</h3>
+      <div class="choice-grid">${weaponCards}</div>
+    </div>
   </div>`;
 }
 
 function startRun(weapon, body){
+  const loadout = DB.loadouts?.[S.loadoutId] || DB.loadouts?.ashblade || null;
   S.weapon = weapon;
   S.body = body;
-  S.deck = normalizeCardPile(DB.weapons[weapon].starter);
+  S.deck = normalizeCardPile(loadout?.startingDeck || DB.weapons[weapon].starter);
+  S.deck.forEach((card)=>markDiscovered("card", cardIdOf(card)));
+  if(loadout?.startingRelic && !S.relics.includes(loadout.startingRelic)) S.relics.push(loadout.startingRelic);
+  S.relics.forEach((rid)=>markDiscovered("relic", rid));
+  if(Number.isFinite(loadout?.startingGold)) S.gold = loadout.startingGold;
+  S.maxHp = Math.max(20, 72 + getStartingMaxHPModifier());
+  S.hp = S.maxHp;
   S.selectedNodeId = null;
   S.mapEncounter = null;
   S.pendingNodeCompletion = null;
   S.map = generateRunMap();
+  startRunStats();
+  M.totalRuns += 1;
+  persistMetaProfile();
   cutscene("The Dead Shrine", "You wake beneath a cracked shrine. The lantern in your chest burns like it recognizes the road ahead.", drawWorld);
 }
 
 function saveGame(options = {}){
   const payload = { saveVersion: SAVE_VERSION, savedAt: Date.now(), runState: S };
-  localStorage.setItem("ashfall_repo_save", JSON.stringify(payload));
+  localStorage.setItem(RUN_SAVE_KEY, JSON.stringify(payload));
   lastSavedAt = new Date(payload.savedAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
   if(!options.silent) toast("Saved.");
 }
@@ -445,11 +731,15 @@ function migrateSave(payload){
   run.deck = normalizeCardPile(run.deck || []);
   run.relics = Array.isArray(run.relics) ? run.relics : [];
   run.gold = Number.isFinite(run.gold) ? run.gold : 0;
+  run.difficulty = Math.max(0, Math.min(MAX_HOLLOW_DEPTH, Number(run.difficulty) || 0));
+  run.loadoutId = run.loadoutId || "ashblade";
+  run.runStats = run.runStats || null;
+  run.runFinished = Boolean(run.runFinished);
   return run;
 }
 
 function loadSave(){
-  const raw = localStorage.getItem("ashfall_repo_save");
+  const raw = localStorage.getItem(RUN_SAVE_KEY) || localStorage.getItem("ashfall_repo_save");
   if(!raw) return toast("No save found.");
   try {
     const parsed = JSON.parse(raw);
@@ -459,7 +749,7 @@ function loadSave(){
     applySettings();
     drawWorld();
   } catch {
-    modal("Save Error", `<p>This save is incompatible or corrupted.</p><button onclick="localStorage.removeItem('ashfall_repo_save'); title();">Reset Save</button>`);
+    modal("Save Error", `<p>This save is incompatible or corrupted.</p><button onclick="localStorage.removeItem('${RUN_SAVE_KEY}'); title();">Reset Save</button>`);
   }
 }
 
@@ -475,7 +765,8 @@ function openRunMenu(){
 
 function abandonRun(){
   if(!confirm("Abandon this run?")) return;
-  localStorage.removeItem("ashfall_repo_save");
+  finishRun("abandoned");
+  localStorage.removeItem(RUN_SAVE_KEY);
   fresh();
   title();
 }
@@ -501,17 +792,91 @@ function toggleSetting(key, value){
   applySettings();
 }
 
+function setDifficulty(depth){
+  const next = Math.max(0, Math.min(M?.difficultyUnlocked || 0, Number(depth) || 0));
+  S.difficulty = next;
+}
+
+function selectLoadout(loadoutId){
+  if(!isUnlocked("loadout", loadoutId)) return toast("Loadout locked.");
+  S.loadoutId = loadoutId;
+  toast(`${DB.loadouts[loadoutId]?.name || loadoutId} selected.`);
+}
+
+function openRunHistory(){
+  const runs = (M?.runHistory || []).slice(0, MAX_RUN_HISTORY);
+  const best = runs.find((run)=>run.result === "win") || runs[0];
+  modal("Run History", `<div class="run-history">
+    ${runs.length ? runs.map((run)=>`<div class="deck-row ${best?.id === run.id ? "best-run" : ""}">
+      <div><b>${run.result.toUpperCase()}</b> · Depth ${run.difficulty} · Act ${run.act} / Floor ${run.floor}</div>
+      <div class="small">${(run.archetypes || []).join(" / ") || "Unfocused"} · Deck ${run.deckSize} · Relics ${run.relicCount}</div>
+      <div class="small">${new Date(run.timestamp).toLocaleString()}</div>
+    </div>`).join("") : "<p>No runs yet. Start your first descent.</p>"}
+  </div>`);
+}
+
+function openFinalDeckViewer(run = null){
+  const source = run || M?.runHistory?.[0];
+  if(!source) return toast("No completed run to inspect.");
+  modal("Final Deck", `<div class="event-wrap">
+    <p class="small">Result: ${source.result} · Hollow Depth ${source.difficulty}</p>
+    <h3>Deck (${source.finalDeck?.length || source.deckSize || 0})</h3>
+    ${(source.finalDeck || []).map((card)=>`<div class="deck-row">${renderCardSummary(card)}</div>`).join("") || "<p>No deck data.</p>"}
+    <h3>Relics (${source.finalRelics?.length || source.relicCount || 0})</h3>
+    ${(source.finalRelics || []).map((rid)=>`<div class="deck-row">${renderRelicSummary(rid)}</div>`).join("") || "<p>No relic data.</p>"}
+  </div>`);
+}
+
+function openResetMenu(){
+  modal("Reset Options", `<div class="menu-list">
+    <button onclick="deleteActiveRun()">Delete Active Run</button>
+    <button onclick="resetMetaProgression()">Reset Meta Progression</button>
+    <button onclick="resetSettingsData()">Reset Settings</button>
+  </div>`);
+}
+
+function deleteActiveRun(){
+  if(!confirm("Delete active run save?")) return;
+  localStorage.removeItem(RUN_SAVE_KEY);
+  toast("Active run deleted.");
+}
+
+function resetMetaProgression(){
+  if(!confirm("Reset all meta progression? This cannot be undone.")) return;
+  M = defaultMetaProfile();
+  persistMetaProfile();
+  toast("Meta progression reset.");
+  title();
+}
+
+function resetSettingsData(){
+  if(!confirm("Reset settings to default?")) return;
+  localStorage.removeItem(SETTINGS_KEY);
+  S.settings = loadSettings();
+  applySettings();
+  toast("Settings reset.");
+}
+
 function openCompendium(){
   setScreen("codex");
-  const cards = Object.values(DB.cards || {});
-  const relics = Object.values(DB.relics || {});
-  const enemies = Object.values(DB.enemies || {});
+  const cards = Object.entries(DB.cards || {}).map(([id, card])=>({ ...card, id }));
+  const relics = Object.entries(DB.relics || {}).map(([id, relic])=>({ ...relic, id }));
+  const enemies = Object.entries(DB.enemies || {}).map(([id, enemy])=>({ ...enemy, id }));
+  const stateFor = (type, id)=>{
+    if(type === "enemy"){
+      if(!(M?.encounteredEnemies || []).includes(id)) return "Undiscovered";
+      return "Discovered";
+    }
+    const discovered = (type === "card" ? M?.discoveredCards : M?.discoveredRelics) || [];
+    if(!discovered.includes(id)) return "Undiscovered";
+    return isUnlocked(type, id) ? "Unlocked" : "Discovered · Locked";
+  };
   G.innerHTML = `<div class="screen codex-screen">
     <div class="top"><div class="logo">Codex / Compendium</div><button onclick="title()">Back</button></div>
     <div class="event-wrap">
-      <h3>Cards discovered</h3>${cards.map((c)=>`<div class="deck-row"><b>${c.name}</b><div class="small">${c.text}</div></div>`).join("")}
-      <h3>Relics discovered</h3>${relics.map((r)=>`<div class="deck-row"><b>${r.name}</b><div class="small">${r.text}</div></div>`).join("")}
-      <h3>Enemies encountered</h3>${enemies.map((e)=>`<div class="deck-row"><b>${e.name}</b><div class="small">${e.behaviorHint || ""}</div></div>`).join("")}
+      <h3>Cards discovered</h3>${cards.map((c)=>`<div class="deck-row"><b>${c.name}</b><div class="small">${c.text}</div><div class="small">${stateFor("card", c.id)}</div></div>`).join("")}
+      <h3>Relics discovered</h3>${relics.map((r)=>`<div class="deck-row"><b>${r.name}</b><div class="small">${r.text}</div><div class="small">${stateFor("relic", r.id)}</div></div>`).join("")}
+      <h3>Enemies encountered</h3>${enemies.map((e)=>`<div class="deck-row"><b>${e.name}</b><div class="small">${e.behaviorHint || ""}</div><div class="small">${stateFor("enemy", e.id)}</div></div>`).join("")}
       <h3>Keywords</h3>${Object.entries(KEYWORD_INFO).map(([k,v])=>`<p><b>${k}</b>: ${v}</p>`).join("")}
     </div>
   </div>`;
@@ -851,8 +1216,9 @@ function completeCurrentNode(result = {}){
   if(node.type === "boss"){
     cutscene("Act Cleared", "The gate falls silent. You have survived Act 1.", ()=>{
       S.hp = Math.min(S.maxHp, S.hp + 18);
-      drawWorld();
-      toast("Act Cleared.");
+      finishRun("win");
+      localStorage.removeItem(RUN_SAVE_KEY);
+      showRunSummary("win");
     });
     return;
   }
@@ -1089,15 +1455,15 @@ function applyEventChoice(choiceIndex){
     S.hp = Math.min(S.maxHp, S.hp + Math.max(0, amount));
   }
   if(effects.maxHP) S.maxHp = Math.max(1, S.maxHp + Math.floor(effects.maxHP));
-  if(effects.gainRelic && DB.relics[effects.gainRelic]) S.relics.push(effects.gainRelic);
-  if(effects.gainRandomRelic){ const relic = pickRelicCandidates(1)[0]; if(relic) S.relics.push(relic); }
-  if(effects.gainCard && DB.cards[effects.gainCard]) addCardToDeck(effects.gainCard);
+  if(effects.gainRelic && DB.relics[effects.gainRelic]){ S.relics.push(effects.gainRelic); markDiscovered("relic", effects.gainRelic); updateRunStats("relic_found"); }
+  if(effects.gainRandomRelic){ const relic = pickRelicCandidates(1)[0]; if(relic){ S.relics.push(relic); markDiscovered("relic", relic); updateRunStats("relic_found"); } }
+  if(effects.gainCard && DB.cards[effects.gainCard]){ addCardToDeck(effects.gainCard); markDiscovered("card", effects.gainCard); updateRunStats("card_picked"); }
   if(effects.gainRandomCard){
     const options = typeof effects.gainRandomCard === 'object' ? effects.gainRandomCard : {};
     const id = pickRandomCard(options);
-    if(id) addCardToDeck(id, { upgraded: Boolean(options.upgraded) });
+    if(id){ addCardToDeck(id, { upgraded: Boolean(options.upgraded) }); markDiscovered("card", id); updateRunStats("card_picked"); }
   }
-  if(effects.addCurse && DB.cards[effects.addCurse]) addCardToDeck(effects.addCurse);
+  if(effects.addCurse && DB.cards[effects.addCurse]){ addCardToDeck(effects.addCurse); M.achievementCounters.cursesAddedTotal += 1; }
   if(effects.addTemporaryCurse && DB.cards[effects.addTemporaryCurse]) S.tempNextCombatCards.push(effects.addTemporaryCurse);
   if(effects.gainWard) S.nextCombat.ward = (S.nextCombat.ward || 0) + Number(effects.gainWard || 0);
   if(effects.gainStatus?.nextCombatBuff) Object.entries(effects.gainStatus.nextCombatBuff).forEach(([k,v])=>S.nextCombat[k] = (S.nextCombat[k] || 0) + Number(v || 0));
@@ -1155,14 +1521,15 @@ function showDeckPicker(title, onPick, options = {}){
   modal(title, `<div class="deck-picker">${body || '<p>No valid cards.</p>'}</div>`);
 }
 function generateShopInventory(){
+  const priceMult = getShopPriceMultiplier();
   const cards = generateCardRewardChoices('combat').map((id)=>{
     const rarity = DB.cards[id]?.rarity || 'common';
     const priceByRarity = { common:45, uncommon:70, rare:110 };
-    return { id, price: priceByRarity[rarity] || 60, sold:false };
+    return { id, price: Math.round((priceByRarity[rarity] || 60) * priceMult), sold:false };
   });
   const relicIds = pickRelicCandidates(2);
-  const relics = relicIds.map((id)=>({ id, price: 140 + Math.floor(Math.random() * 81), sold:false }));
-  return { cards, relics, removalCost: 75 + ((S.shopRemovalCount || 0) * 25), healCost:50 };
+  const relics = relicIds.map((id)=>({ id, price: Math.round((140 + Math.floor(Math.random() * 81)) * priceMult), sold:false }));
+  return { cards, relics, removalCost: Math.round((75 + ((S.shopRemovalCount || 0) * 25)) * priceMult), healCost:Math.round(50 * priceMult) };
 }
 function showShop(node){
   setScreen("shop");
@@ -1171,7 +1538,7 @@ function showShop(node){
   if(!target.shopInventory) target.shopInventory = generateShopInventory();
   S.currentShop = { nodeId };
   const inv = target.shopInventory;
-  G.innerHTML = `<div class="screen shop-screen"><div class="top"><div><div class="logo">Veiled Merchant</div><div class="small">Everything costs Echoes.</div></div><div><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div><div class="shop-wrap"><div class="shop-grid">${inv.cards.map((entry, i)=>`<div class="shop-item ${entry.sold ? 'sold-out' : ''}"><b>${DB.cards[entry.id]?.name || entry.id}</b><div class="small">Card</div><div class="price-tag">${entry.price}</div><button ${entry.sold ? 'disabled' : `onclick="buyShopCard(${i})"`}>${entry.sold ? 'Sold' : 'Buy'}</button></div>`).join('')}${inv.relics.map((entry, i)=>`<div class="shop-item ${entry.sold ? 'sold-out' : ''}"><b>${DB.relics[entry.id]?.name || entry.id}</b><div class="small">Relic</div><div class="price-tag">${entry.price}</div><button ${entry.sold ? 'disabled' : `onclick="buyShopRelic(${i})"`}>${entry.sold ? 'Sold' : 'Buy'}</button></div>`).join('')}</div><div class="shop-services"><button onclick="buyCardRemoval()">Purge a card (${inv.removalCost})</button><button onclick="buyHeal()">Heal (50)</button><button onclick="leaveShop()">Leave Shop</button></div></div></div>`;
+  G.innerHTML = `<div class="screen shop-screen"><div class="top"><div><div class="logo">Veiled Merchant</div><div class="small">Everything costs Echoes.</div></div><div><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div><div class="shop-wrap"><div class="shop-grid">${inv.cards.map((entry, i)=>`<div class="shop-item ${entry.sold ? 'sold-out' : ''}"><b>${DB.cards[entry.id]?.name || entry.id}</b><div class="small">Card</div><div class="price-tag">${entry.price}</div><button ${entry.sold ? 'disabled' : `onclick="buyShopCard(${i})"`}>${entry.sold ? 'Sold' : 'Buy'}</button></div>`).join('')}${inv.relics.map((entry, i)=>`<div class="shop-item ${entry.sold ? 'sold-out' : ''}"><b>${DB.relics[entry.id]?.name || entry.id}</b><div class="small">Relic</div><div class="price-tag">${entry.price}</div><button ${entry.sold ? 'disabled' : `onclick="buyShopRelic(${i})"`}>${entry.sold ? 'Sold' : 'Buy'}</button></div>`).join('')}</div><div class="shop-services"><button onclick="buyCardRemoval()">Purge a card (${inv.removalCost})</button><button onclick="buyHeal()">Heal (${inv.healCost})</button><button onclick="leaveShop()">Leave Shop</button></div></div></div>`;
 }
 function activeShopNode(){ return nodeById(S.currentShop?.nodeId || S.mapEncounter?.nodeId || S.selectedNodeId); }
 function buyShopCard(index){
@@ -1179,6 +1546,8 @@ function buyShopCard(index){
   if(!entry || entry.sold) return;
   if(!spendGold(entry.price)) return toast('Not enough Echoes.');
   addCardToDeck(entry.id); entry.sold = true;
+  markDiscovered("card", entry.id);
+  updateRunStats("card_picked");
   autosave("shop-purchase");
   showShop(node);
 }
@@ -1187,6 +1556,8 @@ function buyShopRelic(index){
   if(!entry || entry.sold) return;
   if(!spendGold(entry.price)) return toast('Not enough Echoes.');
   S.relics.push(entry.id); entry.sold = true;
+  markDiscovered("relic", entry.id);
+  updateRunStats("relic_found");
   autosave("shop-purchase");
   showShop(node);
 }
@@ -1370,7 +1741,8 @@ function modifyByRelics(hook, value, payload = {}){
 }
 
 function startCombat(enemyId, nodeId = null){
-  const e = clone(DB.enemies[enemyId]);
+  const node = nodeId ? nodeById(nodeId) : null;
+  const e = applyDifficultyToEnemy(DB.enemies[enemyId], node?.type || "combat");
   if(!e){
     toast("Combat failed: missing enemy data.");
     drawWorld();
@@ -1395,6 +1767,8 @@ function startCombat(enemyId, nodeId = null){
   };
   S.combat.enemyState.currentMoveId = chooseEnemyMove();
   triggerRelics("combatStart", { enemy:e });
+  markDiscovered("enemy", enemyId);
+  applyBossDifficultyModifiers();
   applyNextCombatBuffs();
   drawCards(5 + (S.combat.drawBonusNextTurn || 0));
   S.combat.drawBonusNextTurn = 0;
@@ -1592,6 +1966,7 @@ function gainBlock(amount, options = {}){
   const C = S.combat;
   if(C.frail>0) amount = Math.floor(amount*.75);
   C.block += amount;
+  M.achievementCounters.blockGainedTotal += Math.max(0, amount);
   C.log.push(`Gained ${amount} Block.`);
   pulseElement(".combat-actions", "anim-block-gain", 260);
   playSfx("block");
@@ -1604,8 +1979,8 @@ function applyEnemyStatus(obj){
     let amount = v;
     if(k === "Weak") amount = modifyByRelics("modifyWeakApplication", v, { source:"card" });
     E.status[k]=(E.status[k]||0)+amount;
-    if(k === "Bleed") triggerRelics("bleedApplied", { enemy:E, amount });
-    if(k === "Burn") triggerRelics("burnApplied", { enemy:E, amount });
+    if(k === "Bleed"){ triggerRelics("bleedApplied", { enemy:E, amount }); M.achievementCounters.bleedAppliedTotal += Math.max(0, amount); }
+    if(k === "Burn"){ triggerRelics("burnApplied", { enemy:E, amount }); M.achievementCounters.burnAppliedTotal += Math.max(0, amount); }
     triggerRelics("statusApplied", { target:"enemy", status:k, amount });
     S.combat.log.push(`${E.name} gains ${k}.`);
   });
@@ -1619,6 +1994,7 @@ function applyPlayerStatus(obj, source = "self"){
   Object.entries(obj||{}).forEach(([k,v])=>{
     if(source === "enemy" && isNegativePlayerStatus(k) && (C.ward || 0) > 0){
       C.ward -= 1;
+      M.achievementCounters.wardBlockedTotal += 1;
       C.log.push(`Ward negated ${k}.`);
       flashElement(".combat-actions", "flash-ward", 220);
       playSfx("ward");
@@ -1762,6 +2138,7 @@ async function playCard(i){
   C.energy -= cost; C.hand.splice(i,1);
   C.flags.firstCardPlayed = true;
   C.cardsPlayedThisTurn += 1;
+  M.achievementCounters.cardsPlayedTotal += 1;
   C.log.push(`Played ${ca.name}.`);
   triggerRelics("cardPlayed", { card:ca, cardId:id });
   await sleep(scaledDelay(90));
@@ -1769,12 +2146,14 @@ async function playCard(i){
 
   if(ca.type==="Skill"){
     C.skillsPlayed++;
+    M.achievementCounters.skillsPlayedTotal += 1;
     pulseElement(".combat-actions", "anim-block-gain", 240);
     triggerRelics("skillPlayed", { card:ca });
     C.firstSkill = false;
   }
   if(ca.type==="Attack"){
     C.attacksPlayed += 1;
+    M.achievementCounters.attacksPlayedTotal += 1;
     pulseElement(".player-combat", "anim-player-attack", 220);
     triggerRelics("attackPlayed", { card:ca });
   }
@@ -1919,6 +2298,7 @@ async function victory(){
   const C = S.combat;
   const E = C.enemy, boss = E.tier === "boss";
   const elite = E.tier === "elite";
+  updateRunStats("enemy_defeated", { tier: E.tier });
   const completionNode = S.pendingNodeCompletion;
   C.locked = true;
   pulseElement("#enemy", "anim-death", 420);
@@ -1938,7 +2318,9 @@ async function victory(){
   drawWorld();
 }
 function pickRelicCandidates(count = 1){
-  const pool = Object.entries(DB.relics).filter(([id, relic])=>relic.stackable || !S.relics.includes(id)).map(([id])=>id);
+  const unlocked = Object.entries(DB.relics).filter(([id, relic])=>(relic.stackable || !S.relics.includes(id)) && isUnlocked("relic", id)).map(([id])=>id);
+  const fallback = Object.entries(DB.relics).filter(([id, relic])=>(relic.stackable || !S.relics.includes(id)) && relic.rarity === "Common").map(([id])=>id);
+  const pool = unlocked.length >= count ? unlocked : [...new Set([...unlocked, ...fallback])];
   const out = [];
   const copy = [...pool];
   while(out.length < count && copy.length){
@@ -1956,6 +2338,7 @@ function showRelicReward(source = "elite"){
   setScreen("reward");
   const choiceCount = source === "boss" ? 3 : 1;
   const choices = pickRelicCandidates(choiceCount);
+  choices.forEach((id)=>markDiscovered("relic", id));
   if(!choices.length){
     toast("No relics available.");
     return skipRelicReward(false);
@@ -1972,6 +2355,8 @@ function pickRelicReward(relicId){
   if(!DB.relics[relicId]) return;
   if(!DB.relics[relicId].stackable && S.relics.includes(relicId)) return toast("Already owned.");
   S.relics.push(relicId);
+  markDiscovered("relic", relicId);
+  updateRunStats("relic_found");
   toast(`${DB.relics[relicId].name} acquired.`);
   autosave("relic-reward");
   skipRelicReward(false);
@@ -1988,7 +2373,9 @@ function skipRelicReward(notify = true){
   drawWorld();
 }
 function generateCardRewardChoices(source = "combat"){
-  const pool = Object.entries(DB.cards).filter(([, card])=>card.type !== "Curse");
+  const unlocked = Object.entries(DB.cards).filter(([id, card])=>card.type !== "Curse" && isUnlocked("card", id));
+  const fallback = Object.entries(DB.cards).filter(([, card])=>card.type !== "Curse" && card.rarity === "common");
+  const pool = unlocked.length >= 6 ? unlocked : [...new Map([...unlocked, ...fallback].map((entry)=>[entry[0], entry])).values()];
   const weightsBySource = {
     combat:{ common:0.7, uncommon:0.25, rare:0.05 },
     elite:{ common:0.45, uncommon:0.4, rare:0.15 },
@@ -2032,6 +2419,7 @@ function generateCardRewardChoices(source = "combat"){
 function showCardReward(source = "combat", options = {}){
   setScreen("reward");
   const choices = generateCardRewardChoices(source);
+  choices.forEach((id)=>markDiscovered("card", id));
   if(!choices.length){
     toast("No cards available for reward.");
     return skipCardReward(false);
@@ -2048,6 +2436,8 @@ function showCardReward(source = "combat", options = {}){
 function pickRewardCard(cardId){
   if(!DB.cards[cardId]) return toast("No cards available.");
   addCardToDeck(cardId);
+  markDiscovered("card", cardId);
+  updateRunStats("card_picked");
   toast(`${DB.cards[cardId].name} added.`);
   autosave("card-reward");
   skipCardReward(false);
@@ -2068,7 +2458,9 @@ async function death(){
   S.memories.push(mem); S.deaths++; S.hp = S.maxHp; S.combat = null;
   S.pendingNodeCompletion = null;
   S.mapEncounter = null;
-  cutscene("You Died", `The lantern drops. The Hollow preserves one memory: ${DB.cards[memId].name}.`, drawWorld);
+  finishRun("loss");
+  localStorage.removeItem(RUN_SAVE_KEY);
+  cutscene("You Died", `The lantern drops. The Hollow preserves one memory: ${DB.cards[memId].name}.`, ()=>showRunSummary("loss"));
 }
 function showCombatLog(){
   const C = S.combat;
@@ -2098,4 +2490,12 @@ window.setSfxVolume = setSfxVolume;
 window.preloadSfxManifest = preloadSfxManifest;
 window.playSfx = playSfx;
 window.abandonRun = abandonRun;
+window.openRunHistory = openRunHistory;
+window.openFinalDeckViewer = openFinalDeckViewer;
+window.openResetMenu = openResetMenu;
+window.resetMetaProgression = resetMetaProgression;
+window.resetSettingsData = resetSettingsData;
+window.deleteActiveRun = deleteActiveRun;
+window.selectLoadout = selectLoadout;
+window.setDifficulty = setDifficulty;
 loadData();

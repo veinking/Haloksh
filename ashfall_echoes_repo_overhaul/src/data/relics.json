@@ -51,7 +51,8 @@
     ],
     "stackable": false,
     "hook": "thirdSkillBlock",
-    "value": 5
+    "value": 5,
+    "unlock": "meta"
   },
   "bone_prayer_beads": {
     "name": "Ashen Spur",

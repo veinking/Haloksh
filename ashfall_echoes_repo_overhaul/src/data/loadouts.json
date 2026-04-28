@@ -1,0 +1,29 @@
+{
+  "ashblade": {
+    "id": "ashblade",
+    "name": "Ashblade",
+    "description": "Balanced opening focused on steady strikes and resilient guard.",
+    "startingDeck": ["strike", "strike", "guard", "guard", "quick_slash", "brace", "open_vein"],
+    "startingRelic": "dull_whetstone",
+    "startingGold": 95,
+    "unlockRequirement": "default"
+  },
+  "lantern_guard": {
+    "id": "lantern_guard",
+    "name": "Lantern Guard",
+    "description": "Defensive style with block and ward support.",
+    "startingDeck": ["strike", "guard", "guard", "ashen_guard", "fortify", "lantern_light", "memory_wick"],
+    "startingRelic": "wax_lantern",
+    "startingGold": 90,
+    "unlockRequirement": "win_1_run"
+  },
+  "red_hymn": {
+    "id": "red_hymn",
+    "name": "Red Hymn",
+    "description": "Risk/reward style leaning into bleed, burn, and curses.",
+    "startingDeck": ["strike", "open_vein", "red_carve", "burn_the_past", "dissonant_hymn", "guard", "blood_pact"],
+    "startingRelic": "rusted_fang",
+    "startingGold": 100,
+    "unlockRequirement": "defeat_3_elites"
+  }
+}

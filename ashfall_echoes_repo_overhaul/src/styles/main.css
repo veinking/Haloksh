@@ -220,3 +220,6 @@ button:disabled{opacity:.38}button:active{transform:scale(.97)}
 @media (prefers-reduced-motion: reduce){
   .screen-shake-light,.screen-shake-medium,.screen-shake-heavy,.node-unlock-pulse,.reward-reveal,.relic-reveal,.phase-overlay{animation-duration:.01ms!important}
 }
+
+.run-history{max-height:min(70vh,520px);overflow:auto;display:grid;gap:8px}
+.best-run{border-color:#9e7a45;background:rgba(158,122,69,.12)}
