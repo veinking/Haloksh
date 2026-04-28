@@ -37,6 +37,30 @@ const STATUS_INFO = {
   Doom: "A lethal omen. Survive before it resolves."
 };
 
+const SAVE_VERSION = 3;
+const SETTINGS_KEY = "ashfall_repo_settings";
+const SETTINGS_DEFAULTS = {
+  reducedMotion: false,
+  textSize: "normal",
+  highContrast: false,
+  autoSave: true,
+  combatSpeed: "normal"
+};
+const KEYWORD_INFO = {
+  Bleed: "Takes damage at end of turn, then decreases by 1.",
+  Burn: "Fire damage over time that decays each turn.",
+  Ward: "Negates the next incoming debuff.",
+  Weak: "Reduces outgoing attack damage.",
+  Frail: "Reduces block gained.",
+  Strength: "Increases attack damage.",
+  Block: "Prevents incoming damage.",
+  Dissonance: "A harmful memory card that clogs your deck.",
+  Echoes: "Currency used for shops and rewards.",
+  Energy: "Resource spent to play cards."
+};
+let currentScreen = "title";
+let lastSavedAt = null;
+
 const ANIMATION_PROFILE = {
   player: {
     attackMs: 260,
@@ -57,7 +81,7 @@ const ANIMATION_PROFILE = {
 const clone = (x) => JSON.parse(JSON.stringify(x));
 const shuffle = (a) => a.sort(() => Math.random() - 0.5);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
-const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const prefersReducedMotion = () => Boolean(S?.settings?.reducedMotion) || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const animDelay = (ms) => prefersReducedMotion() ? 0 : ms;
 
@@ -163,6 +187,59 @@ async function loadData(){
   fresh();
 }
 
+function loadSettings(){
+  try {
+    return { ...SETTINGS_DEFAULTS, ...(JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}") || {}) };
+  } catch {
+    return { ...SETTINGS_DEFAULTS };
+  }
+}
+
+function persistSettings(){
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(S?.settings || SETTINGS_DEFAULTS));
+}
+
+function applySettings(){
+  const settings = S?.settings || loadSettings();
+  document.documentElement.classList.toggle("text-large", settings.textSize === "large");
+  document.documentElement.classList.toggle("high-contrast", Boolean(settings.highContrast));
+}
+
+function autosave(reason = ""){
+  if(!S?.settings?.autoSave) return;
+  saveGame({ silent:true, reason });
+}
+
+function setScreen(screenName){
+  currentScreen = screenName;
+  G.dataset.screen = screenName;
+}
+
+function renderRunHud(){
+  if(!S?.weapon) return "";
+  return `<div class="run-hud">
+    <span>HP ${S.hp}/${S.maxHp}</span>
+    <span>Echoes ${S.gold}</span>
+    <span>Act ${S?.map?.act || 1}</span>
+    <span>Deck ${S.deck?.length || 0}</span>
+    <span>Relics ${S.relics?.length || 0}</span>
+    ${lastSavedAt ? `<span class="save-indicator">Saved ${lastSavedAt}</span>` : ""}
+    ${currentScreen !== "map" ? `<button onclick="drawWorld()">Map</button>` : ""}
+    <button onclick="openRunMenu()">Menu</button>
+  </div>`;
+}
+
+function renderBottomNav(){
+  if(!S?.weapon) return "";
+  return `<div class="bottom-nav">
+    <button onclick="drawWorld()">Map</button>
+    <button onclick="showDeck()">Deck</button>
+    <button onclick="showBuildPanel()">Relics</button>
+    <button onclick="showCombatLog()">Log</button>
+    <button onclick="openRunMenu()">Menu</button>
+  </div>`;
+}
+
 function fresh(){
   S = {
     body:null, weapon:null,
@@ -181,19 +258,33 @@ function fresh(){
     nextCombat:{ ward:0, strength:0, block:0, draw:0, energy:0 },
     nextCombatStatus:{},
     tempNextCombatCards:[],
-    eventMeta:{}
+    eventMeta:{},
+    settings: loadSettings(),
+    saveVersion: SAVE_VERSION
   };
+  applySettings();
   title();
 }
 
 function title(){
-  G.innerHTML = `<div class="title"><div class="panel">
-    <h1>ASHFALL</h1>
-    <p><b>Echoes of the Hollow — repo overhaul build</b></p>
-    <p>Octopath-like atmosphere. Slay-the-Spire-like combat. Light traversal exists for immersion; deck combat and build decisions are the real game.</p>
-    <button onclick="chars()">Begin Pilgrimage</button>
-    <button onclick="loadSave()">Load</button>
+  setScreen("title");
+  const hasSave = Boolean(localStorage.getItem("ashfall_repo_save"));
+  G.innerHTML = `<div class="title app-title"><div class="panel title-panel">
+    <p class="small">Version 0.7.0 · Mobile Build</p>
+    <h1>Ashfall: Echoes of the Hollow</h1>
+    <p class="tagline">“Carry fire through the things that remember you.”</p>
+    <button ${hasSave ? "" : "disabled"} onclick="loadSave()">Continue</button>
+    <button onclick="startNewRun()">New Run</button>
+    <button onclick="openCompendium()">Codex</button>
+    <button onclick="openSettings()">Settings</button>
+    <p class="small">Ashfall repo overhaul build</p>
   </div></div>`;
+}
+
+function startNewRun(){
+  if(localStorage.getItem("ashfall_repo_save") && !confirm("Start a fresh run? Existing save will be replaced once you save.")) return;
+  fresh();
+  chars();
 }
 
 function chars(){
@@ -222,16 +313,90 @@ function startRun(weapon, body){
   cutscene("The Dead Shrine", "You wake beneath a cracked shrine. The lantern in your chest burns like it recognizes the road ahead.", drawWorld);
 }
 
-function saveGame(){
-  localStorage.setItem("ashfall_repo_save", JSON.stringify(S));
-  toast("Saved.");
+function saveGame(options = {}){
+  const payload = { saveVersion: SAVE_VERSION, savedAt: Date.now(), runState: S };
+  localStorage.setItem("ashfall_repo_save", JSON.stringify(payload));
+  lastSavedAt = new Date(payload.savedAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+  if(!options.silent) toast("Saved.");
 }
+
+function migrateSave(payload){
+  const run = payload?.runState ? payload.runState : payload;
+  if(!run || typeof run !== "object") return null;
+  run.saveVersion = payload?.saveVersion || run.saveVersion || 1;
+  run.settings = { ...loadSettings(), ...(run.settings || {}) };
+  run.nextCombat = { ward:0, strength:0, block:0, draw:0, energy:0, ...(run.nextCombat || {}) };
+  run.nextCombatStatus = run.nextCombatStatus || {};
+  run.tempNextCombatCards = Array.isArray(run.tempNextCombatCards) ? run.tempNextCombatCards : [];
+  run.deck = normalizeCardPile(run.deck || []);
+  run.relics = Array.isArray(run.relics) ? run.relics : [];
+  run.gold = Number.isFinite(run.gold) ? run.gold : 0;
+  return run;
+}
+
 function loadSave(){
   const raw = localStorage.getItem("ashfall_repo_save");
   if(!raw) return toast("No save found.");
-  S = JSON.parse(raw);
-  hydrateSave();
-  drawWorld();
+  try {
+    const parsed = JSON.parse(raw);
+    S = migrateSave(parsed);
+    if(!S) throw new Error("bad save");
+    hydrateSave();
+    applySettings();
+    drawWorld();
+  } catch {
+    modal("Save Error", `<p>This save is incompatible or corrupted.</p><button onclick="localStorage.removeItem('ashfall_repo_save'); title();">Reset Save</button>`);
+  }
+}
+
+function openRunMenu(){
+  modal("Run Menu", `<div class="menu-list">
+    <button onclick="document.querySelector('.modal')?.remove()">Resume</button>
+    <button onclick="saveGame()">Save Run</button>
+    <button onclick="title()">Return to Title</button>
+    <button onclick="abandonRun()">Abandon Run</button>
+    <button onclick="openSettings()">Settings</button>
+  </div>`);
+}
+
+function abandonRun(){
+  if(!confirm("Abandon this run?")) return;
+  localStorage.removeItem("ashfall_repo_save");
+  fresh();
+  title();
+}
+
+function openSettings(){
+  const settings = S?.settings || loadSettings();
+  modal("Settings", `<div class="menu-list">
+    <label><span>Reduced Motion</span><input type="checkbox" ${settings.reducedMotion ? "checked" : ""} onchange="toggleSetting('reducedMotion', this.checked)"></label>
+    <label><span>Large Text</span><input type="checkbox" ${settings.textSize === "large" ? "checked" : ""} onchange="toggleSetting('textSize', this.checked ? 'large' : 'normal')"></label>
+    <label><span>High Contrast</span><input type="checkbox" ${settings.highContrast ? "checked" : ""} onchange="toggleSetting('highContrast', this.checked)"></label>
+    <label><span>Auto Save</span><input type="checkbox" ${settings.autoSave ? "checked" : ""} onchange="toggleSetting('autoSave', this.checked)"></label>
+    <label><span>Combat Speed</span><select onchange="toggleSetting('combatSpeed', this.value)"><option value="normal" ${settings.combatSpeed === "normal" ? "selected" : ""}>Normal</option><option value="fast" ${settings.combatSpeed === "fast" ? "selected" : ""}>Fast</option></select></label>
+  </div>`);
+}
+
+function toggleSetting(key, value){
+  S.settings = { ...(S.settings || loadSettings()), [key]: value };
+  persistSettings();
+  applySettings();
+}
+
+function openCompendium(){
+  setScreen("codex");
+  const cards = Object.values(DB.cards || {});
+  const relics = Object.values(DB.relics || {});
+  const enemies = Object.values(DB.enemies || {});
+  G.innerHTML = `<div class="screen codex-screen">
+    <div class="top"><div class="logo">Codex / Compendium</div><button onclick="title()">Back</button></div>
+    <div class="event-wrap">
+      <h3>Cards discovered</h3>${cards.map((c)=>`<div class="deck-row"><b>${c.name}</b><div class="small">${c.text}</div></div>`).join("")}
+      <h3>Relics discovered</h3>${relics.map((r)=>`<div class="deck-row"><b>${r.name}</b><div class="small">${r.text}</div></div>`).join("")}
+      <h3>Enemies encountered</h3>${enemies.map((e)=>`<div class="deck-row"><b>${e.name}</b><div class="small">${e.behaviorHint || ""}</div></div>`).join("")}
+      <h3>Keywords</h3>${Object.entries(KEYWORD_INFO).map(([k,v])=>`<p><b>${k}</b>: ${v}</p>`).join("")}
+    </div>
+  </div>`;
 }
 
 const NODE_TYPES = ["combat","elite","event","rest","shop","treasure"];
@@ -410,6 +575,7 @@ function mapVisionNote(){
 }
 
 function drawWorld(){
+  setScreen("map");
   S.combat = null;
   hydrateSave();
   const rows = mapRows();
@@ -417,6 +583,7 @@ function drawWorld(){
   const selectedReachable = isNodeReachable(selectedNode);
   const pathTaken = S.map.pathHistory.length ? S.map.pathHistory.join(" → ") : "None yet";
   G.innerHTML = `<div class="screen map-screen">
+    ${renderRunHud()}
     <div class="top">
       <div><div class="logo">ACT ${S.map.act || 1}: THE HOLLOW ROAD</div><div class="small">Choose connected routes through the ash.</div></div>
       <div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill echoes-pill">Echoes ${S.gold}</span></div>
@@ -447,7 +614,9 @@ function drawWorld(){
         <button onclick="saveGame()">Save</button><button onclick="showDeck()">Deck</button><button onclick="showBuildPanel()">Build</button><button onclick="showCodex()">Codex</button><button onclick="quest()">Quest</button>
       </div>
     </div>
+    ${renderBottomNav()}
   </div>`;
+  autosave("enter-map");
   document.getElementById("mapScroll")?.scrollTo({top:99999, behavior:"smooth"});
 }
 
@@ -564,6 +733,7 @@ function completeCurrentNode(result = {}){
     });
     return;
   }
+  autosave("node-complete");
 }
 
 function cutscene(title, body, cb){
@@ -709,6 +879,7 @@ function pickEventForNode(node){
   return weightedPick(events, (event)=>event.weight || 1);
 }
 function showEvent(eventId){
+  setScreen("event");
   const event = (DB.events || []).find((entry)=>entry.id === eventId);
   if(!event){ toast('The omen fades.'); completeEvent({ text:'Event lost.' }); drawWorld(); return; }
   S.activeEvent = { id:event.id, nodeId:S.mapEncounter?.nodeId || S.selectedNodeId };
@@ -829,6 +1000,7 @@ function generateShopInventory(){
   return { cards, relics, removalCost: 75 + ((S.shopRemovalCount || 0) * 25), healCost:50 };
 }
 function showShop(node){
+  setScreen("shop");
   const nodeId = typeof node === 'string' ? node : node.id;
   const target = nodeById(nodeId);
   if(!target.shopInventory) target.shopInventory = generateShopInventory();
@@ -842,6 +1014,7 @@ function buyShopCard(index){
   if(!entry || entry.sold) return;
   if(!spendGold(entry.price)) return toast('Not enough Echoes.');
   addCardToDeck(entry.id); entry.sold = true;
+  autosave("shop-purchase");
   showShop(node);
 }
 function buyShopRelic(index){
@@ -849,6 +1022,7 @@ function buyShopRelic(index){
   if(!entry || entry.sold) return;
   if(!spendGold(entry.price)) return toast('Not enough Echoes.');
   S.relics.push(entry.id); entry.sold = true;
+  autosave("shop-purchase");
   showShop(node);
 }
 function buyCardRemoval(){
@@ -877,11 +1051,13 @@ function restHealAmount(){
   return Math.max(10, Math.floor(S.maxHp * 0.3));
 }
 function showRestSite(nodeId){
+  setScreen("rest");
   const purgeCost = 60 + ((S.restPurgeCount || 0) * 20);
   G.innerHTML = `<div class="screen rest-screen"><div class="top"><div><div class="logo">Quiet Lantern</div><div class="small">A sanctuary between bells.</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill echoes-pill">Echoes ${S.gold}</span></div></div><div class="rest-wrap"><p>Choose one rite.</p><div class="rest-actions"><button onclick="restAtSite('${nodeId}')">Rest (+${restHealAmount()} HP)</button><button onclick="showRestUpgradePicker('${nodeId}')">Upgrade</button><button onclick="restPurge('${nodeId}', ${purgeCost})">Purge (${purgeCost})</button><button onclick="restMeditate('${nodeId}')">Meditate (+1 Ward next combat)</button></div></div></div>`;
 }
 function restAtSite(nodeId){
   S.hp = Math.min(S.maxHp, S.hp + restHealAmount());
+  autosave("rest-action");
   completeCurrentNode({ nodeId, text:'You rested at the Quiet Lantern.' });
   drawWorld();
 }
@@ -891,11 +1067,13 @@ function showRestUpgradePicker(nodeId){
 function restPurge(nodeId, cost){
   if(!spendGold(cost)) return toast('Not enough Echoes.');
   S.restPurgeCount = (S.restPurgeCount || 0) + 1;
+  autosave("rest-action");
   showDeckPicker('Purge one card', (index)=>{ removeCardFromDeck(index); completeCurrentNode({ nodeId, text:'You offered a memory to the ash.' }); drawWorld(); });
 }
 function restMeditate(nodeId){
   S.nextCombat.ward = (S.nextCombat.ward || 0) + 1;
   S.nextCombat.draw = (S.nextCombat.draw || 0) + 1;
+  autosave("rest-action");
   completeCurrentNode({ nodeId, text:'You meditated beneath dead lanterns.' });
   drawWorld();
 }
@@ -1026,7 +1204,11 @@ function modifyByRelics(hook, value, payload = {}){
 
 function startCombat(enemyId, nodeId = null){
   const e = clone(DB.enemies[enemyId]);
-  if(!e) throw new Error(`Unknown enemy: ${enemyId}`);
+  if(!e){
+    toast("Combat failed: missing enemy data.");
+    drawWorld();
+    return;
+  }
   if(S.truePilgrimage) e.hp = Math.floor(e.hp * 1.3);
   e.maxHp = e.hp; e.turn = 0; e.block = 0; e.status = {};
   e.moves = normalizeEnemyMoves(e);
@@ -1158,12 +1340,14 @@ function statusChips(statusPairs){
   return `<div class="status-row">${statusPairs.map(([k,v]) => `<span class="status-chip" title="${statusInfo(k)}">${k.toUpperCase()} ${v}</span>`).join("")}</div>`;
 }
 function combatUI(){
+  setScreen("combat");
   const C = S.combat, E = C.enemy, it = currentIntent();
   const enemyStatuses = Object.entries(E.status || {}).filter(([,v])=>v>0);
   const playerStatuses = [["Strength", C.str||0], ["Weak", C.weak||0], ["Frail", C.frail||0], ["Blight", C.blight||0], ["Bleed", C.bleed||0], ["Ward", C.ward||0], ["Fortify", C.fortify||0]].filter(([,v])=>v>0);
   const hp = Math.max(0, E.hp/E.maxHp*100), php = Math.max(0, S.hp/S.maxHp*100);
   const intentDanger = (it?.damage || 0) * (it?.hits || 1) >= 15;
   G.innerHTML = `<div class="combat">
+    ${renderRunHud()}
     <div class="top"><div><div class="logo">${E.name}</div><div class="small">Turn ${C.turn}</div><div class="enemy-meta"><span class="tier tier-${E.tier || "normal"}">${(E.tier || "normal").toUpperCase()}</span>${E.phaseName ? `<span class="phase-pill">${E.phaseName}</span>` : ""}</div>${renderArchetypeChips(E.archetypes || [])}<div class="small">${E.behaviorHint || ""}</div></div><div><span class="pill">HP ${S.hp}/${S.maxHp}</span><span class="pill energy">${C.energy}⚡</span></div></div>
     <div class="stage" id="stage">
       <div class="embers"></div>
@@ -1175,6 +1359,7 @@ function combatUI(){
     </div>
     <div class="combat-actions"><div>Block ${C.block} · <button onclick="showPile('draw')">Draw ${C.draw.length}</button> · <button onclick="showPile('discard')">Discard ${C.discard.length}</button> · <button onclick="showPile('exhaust')">Exhaust ${C.exhaust.length}</button> · <button onclick="showDeck()">Deck</button> · <button onclick="showCombatLog()">Combat Log</button>${statusChips(enemyStatuses)}${statusChips(playerStatuses)}<div class="log">${C.log.slice(-3).join(" / ")}</div></div><button onclick="endTurn()" ${C.locked ? "disabled" : ""}>End Turn</button></div>
     <div class="hand">${C.hand.map((card,i)=>cardHTML(card,i)).join("")}</div>
+    ${renderBottomNav()}
   </div>`;
 }
 function showPile(kind){
@@ -1544,6 +1729,7 @@ function victory(){
     else showRelicReward(source);
     return;
   }
+  autosave("combat-victory");
   drawWorld();
 }
 function pickRelicCandidates(count = 1){
@@ -1562,8 +1748,13 @@ function renderRelicSummary(relicId){
   return `<div class="deck-row"><div><b>${relic.name}</b> <span class="small">${relic.rarity}</span></div><div class="small">${relic.text}</div>${renderArchetypeChips(relic.archetypes)}</div>`;
 }
 function showRelicReward(source = "elite"){
+  setScreen("reward");
   const choiceCount = source === "boss" ? 3 : 1;
   const choices = pickRelicCandidates(choiceCount);
+  if(!choices.length){
+    toast("No relics available.");
+    return skipRelicReward(false);
+  }
   const build = getBuildSummary();
   G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${source.toUpperCase()} Relic Reward</div><div class="small">Choose a relic to shape your run.</div></div><div><span class="pill">Relics ${S.relics.length}</span></div></div>
     <div class="reward-wrap"><p class="small">${pendingVictoryRewards?.summary || "Victory."}</p><p class="small">Current build leans: ${build.top.join(" / ") || "Unfocused"}</p>
@@ -1575,6 +1766,7 @@ function pickRelicReward(relicId){
   if(!DB.relics[relicId].stackable && S.relics.includes(relicId)) return toast("Already owned.");
   S.relics.push(relicId);
   toast(`${DB.relics[relicId].name} acquired.`);
+  autosave("relic-reward");
   skipRelicReward(false);
 }
 function skipRelicReward(notify = true){
@@ -1631,7 +1823,12 @@ function generateCardRewardChoices(source = "combat"){
   return picks;
 }
 function showCardReward(source = "combat", options = {}){
+  setScreen("reward");
   const choices = generateCardRewardChoices(source);
+  if(!choices.length){
+    toast("No cards available for reward.");
+    return skipCardReward(false);
+  }
   pendingVictoryRewards = { ...(pendingVictoryRewards || {}), source, nodeId: options.nodeId || pendingVictoryRewards?.nodeId, summary: options.summary || "Won battle." };
   const sourceLabel = source.charAt(0).toUpperCase() + source.slice(1);
   const build = getBuildSummary();
@@ -1640,8 +1837,10 @@ function showCardReward(source = "combat", options = {}){
     <div class="reward-actions"><button onclick="showDeck()">View Deck</button><button onclick="showBuildPanel()">Build</button><button onclick="skipCardReward()">Skip</button></div></div></div>`;
 }
 function pickRewardCard(cardId){
+  if(!DB.cards[cardId]) return toast("No cards available.");
   addCardToDeck(cardId);
   toast(`${DB.cards[cardId].name} added.`);
+  autosave("card-reward");
   skipCardReward(false);
 }
 function skipCardReward(notify = true){
@@ -1678,4 +1877,10 @@ window.restAtSite = restAtSite;
 window.showRestUpgradePicker = showRestUpgradePicker;
 window.restPurge = restPurge;
 window.restMeditate = restMeditate;
+window.openSettings = openSettings;
+window.openCompendium = openCompendium;
+window.openRunMenu = openRunMenu;
+window.startNewRun = startNewRun;
+window.toggleSetting = toggleSetting;
+window.abandonRun = abandonRun;
 loadData();
