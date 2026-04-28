@@ -11,6 +11,13 @@ const G = document.getElementById("game");
 let DB = {};
 let S = null;
 let pendingVictoryRewards = null;
+const CARD_RARITIES = ["common", "uncommon", "rare"];
+const REWARD_FLAVOR = [
+  "The ash settles. Something useful remains.",
+  "A fragment of technique returns to memory.",
+  "The hollow leaves behind a choice.",
+  "Power always asks to be carried."
+];
 
 const STATUS_INFO = {
   Strength: "Adds damage to attacks.",
@@ -49,6 +56,88 @@ const animDelay = (ms) => prefersReducedMotion() ? 0 : ms;
 
 function safeCombatUIUpdate(){
   if(S?.combat) combatUI();
+}
+
+function cardIdOf(cardOrId){
+  if(typeof cardOrId === "string") return cardOrId;
+  return cardOrId?.id || null;
+}
+
+function createCardInstance(cardId, options = {}){
+  return { id: cardId, upgraded: Boolean(options.upgraded) };
+}
+
+function normalizeCardInstance(card){
+  if(typeof card === "string") return createCardInstance(card);
+  if(card && typeof card === "object" && card.id) return createCardInstance(card.id, { upgraded: card.upgraded });
+  return null;
+}
+
+function normalizeCardPile(pile){
+  return (Array.isArray(pile) ? pile : []).map(normalizeCardInstance).filter(Boolean);
+}
+
+function normalizeDeckState(){
+  S.deck = normalizeCardPile(S.deck);
+  if(S.combat){
+    ["draw", "hand", "discard", "exhaust"].forEach((pile)=>S.combat[pile] = normalizeCardPile(S.combat[pile]));
+  }
+}
+
+function getCardDef(cardOrId){
+  const cardId = cardIdOf(cardOrId);
+  return DB.cards[cardId] || null;
+}
+
+function isCardUpgraded(cardInstance){
+  return Boolean(cardInstance && typeof cardInstance === "object" && cardInstance.upgraded);
+}
+
+function getCardInstanceDef(cardInstance){
+  const base = getCardDef(cardInstance);
+  if(!base) return null;
+  if(!isCardUpgraded(cardInstance) || !base.upgrade) return base;
+  return {
+    ...base,
+    ...base.upgrade,
+    name: base.upgradedName || `${base.name}+`,
+    text: base.upgradedText || base.text
+  };
+}
+
+function upgradeCardInstance(cardInstance){
+  const normalized = normalizeCardInstance(cardInstance);
+  if(!normalized) return null;
+  const base = getCardDef(normalized);
+  if(!base?.upgrade || normalized.upgraded) return normalized;
+  return { ...normalized, upgraded: true };
+}
+
+function addCardToDeck(cardId, options = {}){
+  const card = createCardInstance(cardId, options);
+  S.deck.push(card);
+  return card;
+}
+
+function removeCardFromDeck(index){
+  if(index < 0 || index >= S.deck.length) return null;
+  return S.deck.splice(index, 1)[0];
+}
+
+function transformCardInDeck(index, newCardId){
+  if(index < 0 || index >= S.deck.length) return null;
+  const prev = normalizeCardInstance(S.deck[index]);
+  const transformed = createCardInstance(newCardId, { upgraded: prev?.upgraded });
+  S.deck.splice(index, 1, transformed);
+  return transformed;
+}
+
+function duplicateCardInDeck(index){
+  if(index < 0 || index >= S.deck.length) return null;
+  const copy = normalizeCardInstance(S.deck[index]);
+  if(!copy) return null;
+  S.deck.push({ ...copy });
+  return copy;
 }
 
 async function loadData(){
@@ -103,7 +192,7 @@ function chars(){
 function startRun(weapon, body){
   S.weapon = weapon;
   S.body = body;
-  S.deck = DB.weapons[weapon].starter.slice();
+  S.deck = normalizeCardPile(DB.weapons[weapon].starter);
   S.selectedNodeId = null;
   S.mapEncounter = null;
   S.pendingNodeCompletion = null;
@@ -184,6 +273,8 @@ function hydrateSave(){
   S.map.step = Number.isFinite(S.map.step) ? S.map.step : 0;
   S.map.currentNodeId = S.map.currentNodeId || null;
   S.map.pathHistory = Array.isArray(S.map.pathHistory) ? S.map.pathHistory : [];
+  normalizeDeckState();
+  pendingVictoryRewards = null;
 }
 
 function createNode(id, step, lane, type){
@@ -339,17 +430,15 @@ function enterSelectedNode(){
     return completeCurrentNode({ nodeId:node.id, text:"Omen answered." });
   }
   if(node.type === "rest"){
-    return modal("Quiet Lantern", `<p>Recover 24 HP or refine a basic card.</p>
-      <button onclick="S.hp=Math.min(S.maxHp,S.hp+24);document.querySelector('.modal').remove();completeCurrentNode({nodeId:'${node.id}',text:'Rested at sanctuary.'});drawWorld();">Rest</button>
-      <button onclick="upgradeAtCamp();completeCurrentNode({nodeId:'${node.id}',text:'Refined at sanctuary.'});">Refine</button>`);
+    return showRestSite(node.id);
   }
   if(node.type === "treasure"){
     S.gold += 75;
     const relic = pick(Object.keys(DB.relics));
     if(!S.relics.includes(relic)) S.relics.push(relic);
     toast(`Treasure found: +75g and ${DB.relics[relic].name}.`);
-    completeCurrentNode({ nodeId:node.id, text:`Claimed ${node.title}.` });
-    return drawWorld();
+    pendingVictoryRewards = { nodeId:node.id, source:"treasure" };
+    return showCardReward("treasure", { summary:`Claimed ${node.title}.`, nodeId:node.id });
   }
   if(node.type === "shop"){
     return mapShop(node.id);
@@ -424,16 +513,70 @@ function animateEnemyIntent(intent){
 function modal(title, body){
   G.innerHTML += `<div class="modal"><div class="modalbox"><h2>${title}</h2>${body}<button onclick="document.querySelector('.modal').remove()">Close</button></div></div>`;
 }
+function cardClassNames(cardInstance){
+  const card = getCardInstanceDef(cardInstance);
+  if(!card) return "card";
+  return ["card", `card-${card.rarity}`, isCardUpgraded(cardInstance) ? "card-upgraded" : ""].filter(Boolean).join(" ");
+}
+function renderCardSummary(cardInstance){
+  const card = getCardInstanceDef(cardInstance);
+  if(!card) return "";
+  const tags = (card.tags || []).join(", ");
+  return `<div class="${cardClassNames(cardInstance)}"><span class="cost">${card.unplayable ? "–" : card.cost}</span><h4>${card.name}</h4><div class="art"></div><div class="type">${card.type} · ${card.rarity}</div><div class="txt">${card.text}${tags ? `<br><span class="small">Keywords: ${tags}</span>` : ""}</div></div>`;
+}
 function showDeck(){
-  const counts = {};
-  S.deck.forEach(id => counts[id]=(counts[id]||0)+1);
-  modal("Deck", `<p>${S.deck.length} cards</p>${Object.entries(counts).map(([id,n])=>`<p><b>${DB.cards[id].name}</b> x${n}<br><span class="small">${DB.cards[id].text}</span></p>`).join("")}`);
+  const deck = normalizeCardPile(S.deck);
+  const grouped = {};
+  deck.forEach((card)=>{
+    const key = `${card.id}:${isCardUpgraded(card) ? "up" : "base"}`;
+    grouped[key] = grouped[key] || { card, count:0 };
+    grouped[key].count += 1;
+  });
+  const rows = Object.values(grouped).map(({ card, count })=>{
+    const def = getCardInstanceDef(card);
+    return `<div class="deck-row"><div><b>${def?.name || card.id}</b> x${count}</div><div class="small">${def?.type || "Unknown"} · ${def?.rarity || "?"} · Cost ${def?.cost ?? "?"}</div><div class="small">${def?.text || "Missing card definition."}</div></div>`;
+  }).join("");
+  modal("Deck", `<p>${deck.length} cards</p><div class="deck-list">${rows || "<p>Deck empty.</p>"}</div>`);
 }
 function showCodex(){
   modal("Codex", `<p><b>Relics:</b> ${S.relics.map(id=>DB.relics[id].name).join(", ")}</p><p><b>Kills:</b> ${S.kills}</p><p><b>Deaths:</b> ${S.deaths}</p><p><b>False Ending:</b> ${S.falseEnding ? "Unlocked" : "Not yet"}</p><p><b>Direction:</b> Route choice is now the spine of each run.</p>`);
 }
 function quest(){
   toast("Choose your path carefully. Boss waits at the final step.");
+}
+function restHealAmount(){
+  return Math.max(8, Math.floor(S.maxHp * 0.28));
+}
+function showRestSite(nodeId){
+  document.querySelector(".modal")?.remove();
+  modal("Quiet Lantern", `<p>Current HP: <b>${S.hp}/${S.maxHp}</b></p><p>Recover body or sharpen one memory.</p>
+    <button onclick="restAtSite('${nodeId}')">Rest (+${restHealAmount()} HP)</button>
+    <button onclick="showRestUpgradePicker('${nodeId}')">Upgrade Card</button>
+    <button onclick="showDeck()">View Deck</button>`);
+}
+function restAtSite(nodeId){
+  S.hp = Math.min(S.maxHp, S.hp + restHealAmount());
+  document.querySelector(".modal")?.remove();
+  completeCurrentNode({ nodeId, text:"Rested at sanctuary." });
+  drawWorld();
+}
+function showRestUpgradePicker(nodeId){
+  document.querySelector(".modal")?.remove();
+  const choices = normalizeCardPile(S.deck).map((card, index)=>{
+    const base = getCardDef(card);
+    const def = getCardInstanceDef(card);
+    const canUpgrade = Boolean(base?.upgrade) && !isCardUpgraded(card);
+    return `<button ${canUpgrade ? `onclick=\"upgradeDeckCardAtRest(${index}, '${nodeId}')\"` : "disabled"}><b>${def?.name || card.id}</b><br><span class="small">${def?.text || ""}</span><br><span class="small">${canUpgrade ? "Upgradable" : "Already upgraded or no upgrade"}</span></button>`;
+  }).join("");
+  modal("Refine Memory", `<p>Select one card to upgrade.</p><div class="reward-grid">${choices || "<p>No cards available.</p>"}</div>`);
+}
+function upgradeDeckCardAtRest(index, nodeId){
+  const upgraded = upgradeCardInstance(S.deck[index]);
+  S.deck.splice(index, 1, upgraded);
+  document.querySelector(".modal")?.remove();
+  toast(`${getCardInstanceDef(upgraded)?.name || "Card"} refined.`);
+  completeCurrentNode({ nodeId, text:"Refined at sanctuary." });
+  drawWorld();
 }
 function runEvent(eventId){
   if(eventId === "grave"){
@@ -445,7 +588,7 @@ function runEvent(eventId){
     return;
   }
   if(eventId === "candle_girl"){
-    modal("The Candle Girl", `<p>A faceless child offers flame and asks for blood.</p><button onclick="S.hp=Math.max(1,S.hp-6);S.deck.push('blood_pact');document.querySelector('.modal').remove();drawWorld();">Accept Bargain</button>`);
+    modal("The Candle Girl", `<p>A faceless child offers flame and asks for blood.</p><button onclick="S.hp=Math.max(1,S.hp-6);addCardToDeck('blood_pact');document.querySelector('.modal').remove();drawWorld();">Accept Bargain</button>`);
     return;
   }
   const ev = (DB.events || []).find((e)=>e.id===eventId);
@@ -461,19 +604,19 @@ function mapShop(nodeId){
     <button onclick="removeBasic()">Remove Strike/Guard — 75g</button>
     <button onclick="document.querySelector('.modal').remove();completeCurrentNode({nodeId:'${nodeId}',text:'Left the merchant.'});drawWorld();">Leave Shop</button>`);
 }
-function buyCard(id,cost){ if(S.gold<cost) return toast("Not enough gold."); S.gold-=cost; S.deck.push(id); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
+function buyCard(id,cost){ if(S.gold<cost) return toast("Not enough gold."); S.gold-=cost; addCardToDeck(id); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
 function removeBasic(){
   if(S.gold<75) return toast("Not enough gold.");
-  const i = S.deck.findIndex(id=>id==="strike"||id==="guard");
-  if(i>=0){ S.gold-=75; S.deck.splice(i,1); toast("A basic memory is removed."); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
+  const i = S.deck.findIndex((card)=>["strike","guard"].includes(cardIdOf(card)));
+  if(i>=0){ S.gold-=75; removeCardFromDeck(i); toast("A basic memory is removed."); document.querySelector(".modal").remove(); mapShop(S.mapEncounter?.nodeId || S.selectedNodeId); }
   else toast("No Strike/Guard found.");
 }
 function camp(){
-  modal("Quiet Lantern", `<p>Recover or refine.</p><button onclick="S.hp=Math.min(S.maxHp,S.hp+24);document.querySelector('.modal').remove();drawWorld();">Rest</button><button onclick="upgradeAtCamp()">Refine</button>`);
+  showRestSite(S.mapEncounter?.nodeId || S.selectedNodeId);
 }
 function upgradeAtCamp(){
-  const i = S.deck.findIndex(id=>id==="strike"||id==="guard");
-  if(i>=0){ S.deck.splice(i,1); document.querySelector(".modal")?.remove(); toast("You refine your deck."); drawWorld(); }
+  const i = S.deck.findIndex((card)=>["strike","guard"].includes(cardIdOf(card)) && !isCardUpgraded(card));
+  if(i>=0){ const upgraded = upgradeCardInstance(S.deck[i]); S.deck.splice(i,1, upgraded); document.querySelector(".modal")?.remove(); toast("You refine your deck."); drawWorld(); }
   else toast("Nothing basic to refine.");
 }
 
@@ -484,7 +627,7 @@ function startCombat(enemyId, nodeId = null){
   e.maxHp = e.hp; e.turn = 0; e.block = 0; e.status = {};
   S.pendingNodeCompletion = nodeId;
   const deck = S.deck.slice();
-  if(S.relics.includes("hollow_crown")) deck.push(...DB.relics.hollow_crown.curses);
+  if(S.relics.includes("hollow_crown")) deck.push(...DB.relics.hollow_crown.curses.map((id)=>createCardInstance(id)));
   S.combat = {
     enemy:e, draw:shuffle(deck), hand:[], discard:[], exhaust:[],
     energy:3 + (S.relics.includes("hollow_crown") ? 1 : 0),
@@ -501,9 +644,9 @@ function drawCards(n){
   for(let i=0;i<n;i++){
     if(!C.draw.length){ C.draw = shuffle(C.discard); C.discard = []; }
     if(!C.draw.length) return;
-    const id = C.draw.pop();
-    C.hand.push(id);
-    const card = DB.cards[id];
+    const cardInstance = normalizeCardInstance(C.draw.pop());
+    C.hand.push(cardInstance);
+    const card = getCardInstanceDef(cardInstance);
     if(card.onDrawStatus){
       Object.entries(card.onDrawStatus).forEach(([k,v])=>C[k.toLowerCase()] = (C[k.toLowerCase()]||0)+v);
     }
@@ -564,23 +707,25 @@ function combatUI(){
       <div class="enemy ${E.class || ""}" id="enemy"><div class="core"></div><div class="head"></div><div class="eye"></div><div class="robe"></div><div class="bells"></div><div class="face"></div></div>
       <div class="player player-combat"><div class="cloak"></div><div class="head"></div><div class="body"></div><div class="lamp"></div><div class="blade"></div></div>
     </div>
-    <div class="combat-actions"><div>Block ${C.block} · <button onclick="showPile('draw')">Draw ${C.draw.length}</button> · <button onclick="showPile('discard')">Discard ${C.discard.length}</button> · <button onclick="showPile('exhaust')">Exhaust ${C.exhaust.length}</button> · <button onclick="showCombatLog()">Combat Log</button>${statusChips(enemyStatuses)}${statusChips(playerStatuses)}<div class="log">${C.log.slice(-3).join(" / ")}</div></div><button onclick="endTurn()" ${C.locked ? "disabled" : ""}>End Turn</button></div>
-    <div class="hand">${C.hand.map((id,i)=>cardHTML(id,i)).join("")}</div>
+    <div class="combat-actions"><div>Block ${C.block} · <button onclick="showPile('draw')">Draw ${C.draw.length}</button> · <button onclick="showPile('discard')">Discard ${C.discard.length}</button> · <button onclick="showPile('exhaust')">Exhaust ${C.exhaust.length}</button> · <button onclick="showDeck()">Deck</button> · <button onclick="showCombatLog()">Combat Log</button>${statusChips(enemyStatuses)}${statusChips(playerStatuses)}<div class="log">${C.log.slice(-3).join(" / ")}</div></div><button onclick="endTurn()" ${C.locked ? "disabled" : ""}>End Turn</button></div>
+    <div class="hand">${C.hand.map((card,i)=>cardHTML(card,i)).join("")}</div>
   </div>`;
 }
 function showPile(kind){
   const C = S.combat;
   if(!C) return;
   const cards = C[kind] || [];
-  const list = cards.length ? cards.map((id)=>`<p><b>${DB.cards[id].name}</b><br><span class="small">${DB.cards[id].text}</span></p>`).join("") : "<p>Empty.</p>";
+  const list = cards.length ? cards.map((card)=>`<p><b>${getCardInstanceDef(card)?.name || cardIdOf(card)}</b><br><span class="small">${getCardInstanceDef(card)?.text || ""}</span></p>`).join("") : "<p>Empty.</p>";
   modal(`${kind[0].toUpperCase()+kind.slice(1)} Pile`, list);
 }
-function cardHTML(id,i){
-  const ca = DB.cards[id], C = S.combat;
+function cardHTML(cardInstance,i){
+  const ca = getCardInstanceDef(cardInstance), C = S.combat;
+  if(!ca) return "";
   let cost = ca.cost;
   if(C.firstSkill && ca.type==="Skill" && S.relics.includes("cracked_charm")) cost = 0;
   const dis = C.locked || ca.unplayable || cost > C.energy;
-  return `<div class="card ${dis ? "disabled" : "playable"}" data-index="${i}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div><div class="txt">${ca.text}</div></div>`;
+  const classes = [cardClassNames(cardInstance), dis ? "disabled" : "playable"].join(" ");
+  return `<div class="${classes}" data-index="${i}" onclick="${dis ? "" : `playCard(${i})`}"><span class="cost">${ca.unplayable ? "–" : cost}</span><h4>${ca.name}</h4><div class="art"></div><div class="type">${ca.type} · ${ca.rarity}</div><div class="txt">${ca.text}</div></div>`;
 }
 function floatFeedback(text, target = "enemy"){
   const stage = document.getElementById("stage");
@@ -654,7 +799,7 @@ function applyPlayerStatus(obj, source = "self"){
   });
 }
 async function playCard(i){
-  const C = S.combat, id = C.hand[i], ca = DB.cards[id];
+  const C = S.combat, cardInstance = C.hand[i], ca = getCardInstanceDef(cardInstance), id = cardIdOf(cardInstance);
   if(!ca || ca.unplayable || C.locked) return;
   let cost = ca.cost;
   if(C.firstSkill && ca.type==="Skill" && S.relics.includes("cracked_charm")) cost = 0;
@@ -686,7 +831,7 @@ async function playCard(i){
   }
   if(ca.gainEnergy) C.energy += ca.gainEnergy;
   if(ca.block) gainBlock(ca.block);
-  if(ca.bonusBlockIfCurse && C.hand.some((cardId)=>DB.cards[cardId]?.type === "Curse")) gainBlock(ca.bonusBlockIfCurse);
+  if(ca.bonusBlockIfCurse && C.hand.some((card)=>getCardInstanceDef(card)?.type === "Curse")) gainBlock(ca.bonusBlockIfCurse);
   if(ca.fortify){ C.fortify += ca.fortify; gainBlock(ca.fortify); }
   if(ca.heal){ const heal = Math.max(0, ca.heal - (C.blight||0)); S.hp = Math.min(S.maxHp, S.hp + heal); floatFeedback(`+${heal} HP`, "player"); }
   if(ca.playerStatus) applyPlayerStatus(ca.playerStatus, "self");
@@ -696,8 +841,8 @@ async function playCard(i){
     applyEnemyStatus(ca.apply);
     Object.entries(ca.apply).forEach(([k,v])=>floatFeedback(`${k} +${v}`, "enemy"));
   }
-  if(ca.addDiscard) C.discard.push(ca.addDiscard);
-  if(ca.addDraw) C.draw.push(...ca.addDraw);
+  if(ca.addDiscard) C.discard.push(createCardInstance(ca.addDiscard));
+  if(ca.addDraw) C.draw.push(...ca.addDraw.map((id)=>createCardInstance(id)));
   if(ca.exhaustRandomHand && C.hand.length){
     const idx = Math.floor(Math.random()*C.hand.length);
     const removed = C.hand.splice(idx,1)[0];
@@ -721,8 +866,8 @@ async function playCard(i){
     damageEnemy(dmg, ca.hits || 1);
   }
 
-  if(ca.exhaust) { C.exhaust.push(id); if(C.powers.exhaust_damage) damageEnemy(3); }
-  else if(ca.type !== "Power") C.discard.push(id);
+  if(ca.exhaust) { C.exhaust.push(cardInstance); if(C.powers.exhaust_damage) damageEnemy(3); }
+  else if(ca.type !== "Power") C.discard.push(cardInstance);
 
   await sleep(animDelay(220));
   if(S.hp<=0){ C.locked = false; return death(); }
@@ -734,8 +879,8 @@ async function endTurn(){
   const C = S.combat, E = C.enemy, it = currentIntent();
   if(C.locked) return;
   C.locked = true;
-  C.hand.forEach(id=>{
-    const ca = DB.cards[id];
+  C.hand.forEach((cardInstance)=>{
+    const ca = getCardInstanceDef(cardInstance);
     if(ca.endTurnDamage){ S.hp -= ca.endTurnDamage; C.log.push(`${ca.name} hurts you for ${ca.endTurnDamage}.`); }
   });
   C.discard.push(...C.hand); C.hand = [];
@@ -774,7 +919,8 @@ async function endTurn(){
   }
   if(it.type==="block"){ E.block = (E.block||0) + it.block; C.log.push(`${E.name} gains ${it.block} Block.`); floatFeedback(`+${it.block} Block`, "enemy"); }
   if(it.type==="add_card"){
-    if(it.to==="discard") C.discard.push(it.card); else C.draw.push(it.card);
+    const generated = createCardInstance(it.card);
+    if(it.to==="discard") C.discard.push(generated); else C.draw.push(generated);
     C.log.push(`${DB.cards[it.card].name} enters your ${it.to}.`);
   }
   if(it.type==="drain_energy_next_turn"){
@@ -821,38 +967,67 @@ function victory(){
   S.kills++; S.gold += E.elite ? 65 : boss ? 100 : 30;
   S.combat = null;
   if(completionNode){
-    if(boss){
-      completeCurrentNode({ nodeId:completionNode, text:"Boss defeated." });
-      return;
-    }
-    const pool = Object.keys(DB.cards).filter(id=>!["Basic","Curse"].includes(DB.cards[id].rarity));
-    pendingVictoryRewards = { nodeId:completionNode };
-    const picks = shuffle(pool).slice(0,3);
-    G.innerHTML = `<div class="modal"><div class="modalbox"><h2>Victory</h2><p>You gain gold. Choose one memory.</p><div class="reward-grid">${picks.map(id=>`<button onclick="takeReward('${id}')"><b>${DB.cards[id].name}</b><br><span class="small">${DB.cards[id].text}</span></button>`).join("")}<button onclick="skipReward()">Skip Card</button></div></div></div>`;
+    pendingVictoryRewards = { nodeId:completionNode, source: boss ? "boss" : E.elite ? "elite" : "combat" };
+    showCardReward(pendingVictoryRewards.source, { nodeId: completionNode, summary: boss ? "Boss defeated." : "Won battle." });
     return;
   }
   drawWorld();
 }
-function takeReward(id){
-  S.deck.push(id);
-  toast(`${DB.cards[id].name} added.`);
-  const nodeId = pendingVictoryRewards?.nodeId;
-  pendingVictoryRewards = null;
-  completeCurrentNode({ nodeId, text:"Won battle." });
-  drawWorld();
+function generateCardRewardChoices(source = "combat"){
+  const pool = Object.entries(DB.cards).filter(([, card])=>card.type !== "Curse");
+  const weightsBySource = {
+    combat:{ common:0.7, uncommon:0.25, rare:0.05 },
+    elite:{ common:0.45, uncommon:0.4, rare:0.15 },
+    boss:{ common:0.2, uncommon:0.45, rare:0.35 },
+    treasure:{ common:0.15, uncommon:0.5, rare:0.35 },
+    event:{ common:0.4, uncommon:0.4, rare:0.2 }
+  };
+  const weights = weightsBySource[source] || weightsBySource.combat;
+  const byRarity = Object.fromEntries(CARD_RARITIES.map((rarity)=>[rarity, []]));
+  pool.forEach(([id, card])=>{ if(byRarity[card.rarity]) byRarity[card.rarity].push(id); });
+  const picks = [];
+  while(picks.length < 3){
+    const roll = Math.random();
+    const rarity = roll < weights.common ? "common" : roll < weights.common + weights.uncommon ? "uncommon" : "rare";
+    const rarityPool = byRarity[rarity].filter((id)=>!picks.includes(id));
+    if(rarityPool.length){
+      picks.push(pick(rarityPool));
+      continue;
+    }
+    const backup = pool.map(([id])=>id).filter((id)=>!picks.includes(id));
+    if(!backup.length) break;
+    picks.push(pick(backup));
+  }
+  return picks;
 }
-function skipReward(){
+function showCardReward(source = "combat", options = {}){
+  const choices = generateCardRewardChoices(source);
+  pendingVictoryRewards = { ...(pendingVictoryRewards || {}), source, nodeId: options.nodeId || pendingVictoryRewards?.nodeId, summary: options.summary || "Won battle." };
+  const sourceLabel = source.charAt(0).toUpperCase() + source.slice(1);
+  G.innerHTML = `<div class="screen reward-screen"><div class="top"><div><div class="logo">${sourceLabel} Reward</div><div class="small">${pick(REWARD_FLAVOR)}</div></div><div><span class="pill">Deck ${S.deck.length}</span><span class="pill">${S.gold}g</span></div></div>
+    <div class="reward-wrap"><p class="small">${pendingVictoryRewards.summary} Choose one memory or pass.</p><div class="reward-grid">${choices.map((id)=>`<button class="reward-choice" onclick="pickRewardCard('${id}')">${renderCardSummary(createCardInstance(id))}</button>`).join("")}</div>
+    <div class="reward-actions"><button onclick="showDeck()">View Deck</button><button onclick="skipCardReward()">Skip</button></div></div></div>`;
+}
+function pickRewardCard(cardId){
+  addCardToDeck(cardId);
+  toast(`${DB.cards[cardId].name} added.`);
+  skipCardReward(false);
+}
+function skipCardReward(notify = true){
   const nodeId = pendingVictoryRewards?.nodeId;
+  const summary = pendingVictoryRewards?.summary || "Won battle.";
   pendingVictoryRewards = null;
-  completeCurrentNode({ nodeId, text:"Won battle." });
+  if(notify) toast("You leave the memory behind.");
+  completeCurrentNode({ nodeId, text:summary });
   drawWorld();
 }
 function death(){
   const mem = pick(S.deck);
+  const memId = cardIdOf(mem);
   S.memories.push(mem); S.deaths++; S.hp = S.maxHp; S.combat = null;
   S.pendingNodeCompletion = null;
   S.mapEncounter = null;
-  cutscene("You Died", `The lantern drops. The Hollow preserves one memory: ${DB.cards[mem].name}.`, drawWorld);
+  cutscene("You Died", `The lantern drops. The Hollow preserves one memory: ${DB.cards[memId].name}.`, drawWorld);
 }
 function showCombatLog(){
   const C = S.combat;
