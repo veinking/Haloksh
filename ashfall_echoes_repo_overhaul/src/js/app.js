@@ -604,6 +604,22 @@ function renderBottomNav(){
   </div>`;
 }
 
+const BALANCE = {
+  playerBaseHP: 72,
+  normalRewardGoldMin: 15,
+  normalRewardGoldMax: 25,
+  eliteRewardGoldMin: 35,
+  eliteRewardGoldMax: 55,
+  shopPrices: { cardMin: 45, cardMax: 85, relicMin: 135, relicMax: 195, removalBase: 75, healBase: 50 },
+  rarityWeights: {
+    combat:{ common:0.74, uncommon:0.22, rare:0.04 },
+    elite:{ common:0.5, uncommon:0.35, rare:0.15 },
+    boss:{ common:0.2, uncommon:0.45, rare:0.35 }
+  },
+  mapGeneration: { stepsBeforeBoss: 12, minShopStep: 4, eliteStartStep: 3 },
+  difficultyModifiers: { hpPerDepth: 2, damagePerDepth: 0.08 }
+};
+
 function fresh(){
   if(!M) loadMetaProfile();
   S = {
@@ -987,21 +1003,6 @@ function openCompendium(){
 }
 
 
-const BALANCE = {
-  playerBaseHP: 72,
-  normalRewardGoldMin: 15,
-  normalRewardGoldMax: 25,
-  eliteRewardGoldMin: 35,
-  eliteRewardGoldMax: 55,
-  shopPrices: { cardMin: 45, cardMax: 85, relicMin: 135, relicMax: 195, removalBase: 75, healBase: 50 },
-  rarityWeights: {
-    combat:BALANCE.rarityWeights.combat,
-    elite:BALANCE.rarityWeights.elite,
-    boss:{ common:0.2, uncommon:0.45, rare:0.35 }
-  },
-  mapGeneration: { stepsBeforeBoss: 12, minShopStep: 4, eliteStartStep: 3 },
-  difficultyModifiers: { hpPerDepth: 2, damagePerDepth: 0.08 }
-};
 const NODE_TYPES = ["combat","elite","event","rest","shop","treasure"];
 const NODE_ICONS = {combat:"⚔", elite:"💀", event:"?", rest:"✦", shop:"⚖", treasure:"◆", boss:"👁"};
 const NODE_RISK = {
@@ -2620,8 +2621,22 @@ window.resetSettingsData = resetSettingsData;
 window.deleteActiveRun = deleteActiveRun;
 window.selectLoadout = selectLoadout;
 window.setDifficulty = setDifficulty;
-loadData();
+function renderFatalStartupError(err){
+  const message = (err && (err.message || String(err))) || "Unknown startup error";
+  const host = document.getElementById("app") || document.getElementById("game") || document.body;
+  host.innerHTML = `<div class="screen error-screen"><div class="panel" style="margin:12px"><h2>Something broke in the Hollow.</h2><p class="small">${message}</p><div class="menu-list"><button onclick="clearCorruptSave(); location.reload();">Clear Active Run</button><button onclick="location.reload();">Return to Title</button></div></div></div>`;
+}
 
+function bootApp(){
+  loadData();
+}
+
+try {
+  bootApp();
+} catch (err) {
+  console.error("Ashfall startup failed:", err);
+  renderFatalStartupError(err);
+}
 
 if (location.search.includes("debug=1") || localStorage.getItem("ashfallDebug") === "1") {
   window.AshfallDebug = {
@@ -2642,4 +2657,5 @@ window.copyDebugReport = copyDebugReport;
 window.recoverFromBackup = recoverFromBackup;
 window.clearCorruptSave = clearCorruptSave;
 window.showFatalError = showFatalError;
+window.renderFatalStartupError = renderFatalStartupError;
 window.addEventListener("error", (evt)=>showFatalError(evt.error || new Error(evt.message), "window"));
