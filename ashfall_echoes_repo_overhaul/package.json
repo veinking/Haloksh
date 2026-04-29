@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "python -m http.server 8080",
     "validate": "node tools/validateData.js",
-    "validate:animations": "node tools/validateAnimations.js"
+    "validate:animations": "node tools/validateAnimations.js",
+    "smoke": "node tools/smokeTest.js"
   },
   "private": true
 }
