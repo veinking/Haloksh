@@ -98,3 +98,6 @@ Every system should support:
 - meaningful run choices
 - dark worldbuilding
 - false ending into deeper game
+
+
+> Dev note: Run with `python -m http.server 8080` and open `http://localhost:8080/`. Do not open `index.html` directly with `file://` because manifest/localStorage/PWA behavior may be blocked.
