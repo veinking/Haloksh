@@ -41,6 +41,8 @@ const STATUS_INFO = {
 const SAVE_VERSION = 3;
 const SETTINGS_KEY = "ashfall_settings";
 const RUN_SAVE_KEY = "ashfall_run_save";
+const RUN_BACKUP_KEY = "ashfall_run_save_backup";
+const RUN_LAST_GOOD_KEY = "ashfall_run_last_good";
 const META_PROFILE_KEY = "ashfall_meta_profile";
 const META_VERSION = 1;
 const MAX_RUN_HISTORY = 20;
@@ -713,9 +715,106 @@ function startRun(weapon, body){
   cutscene("The Dead Shrine", "You wake beneath a cracked shrine. The lantern in your chest burns like it recognizes the road ahead.", drawWorld);
 }
 
+
+function normalizeRunState(run){
+  const out = migrateSave({ runState: clone(run || {}) }) || null;
+  if(!out) return null;
+  out.deck = normalizeCardPile(out.deck);
+  out.relics = Array.isArray(out.relics) ? out.relics.filter((id)=>typeof id === "string") : [];
+  out.gold = Math.max(0, Number(out.gold) || 0);
+  out.hp = Math.max(0, Number(out.hp) || 1);
+  out.maxHp = Math.max(1, Number(out.maxHp) || out.hp || 1);
+  out.hp = Math.min(out.hp, out.maxHp);
+  return out;
+}
+
+function validateRunState(run){
+  const errors = [];
+  if(!run || typeof run !== "object") errors.push("run missing");
+  if(!Array.isArray(run?.deck)) errors.push("deck missing");
+  if(!Array.isArray(run?.relics)) errors.push("relics missing");
+  if(!run?.map || !Array.isArray(run.map.steps)) errors.push("map missing");
+  if(!Number.isFinite(run?.hp) || !Number.isFinite(run?.maxHp)) errors.push("hp invalid");
+  if(run?.combat){
+    ["draw","hand","discard","exhaust"].forEach((pile)=>{ if(!Array.isArray(run.combat[pile])) errors.push(`combat.${pile} missing`); });
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+function repairRunState(run){
+  const repaired = normalizeRunState(run);
+  if(!repaired) return null;
+  if(!repaired.map || !Array.isArray(repaired.map.steps)) repaired.map = generateRunMap();
+  if(!repaired.currentNodeId) repaired.currentNodeId = repaired.map?.startNodeId || null;
+  repaired.nextCombat = { ward:0, strength:0, block:0, draw:0, energy:0, ...(repaired.nextCombat || {}) };
+  return repaired;
+}
+
+function backupRunSave(){
+  const primary = localStorage.getItem(RUN_SAVE_KEY);
+  if(primary) localStorage.setItem(RUN_BACKUP_KEY, primary);
+}
+
+function clearCorruptSave(){
+  localStorage.removeItem(RUN_SAVE_KEY);
+  localStorage.removeItem(RUN_BACKUP_KEY);
+  localStorage.removeItem(RUN_LAST_GOOD_KEY);
+}
+
+function exportDebugReport(){
+  const combat = S?.combat;
+  const report = {
+    appVersion: "0.4.0",
+    saveVersion: S?.saveVersion || SAVE_VERSION,
+    currentScreen,
+    hp: S?.hp,
+    maxHp: S?.maxHp,
+    piles: { deck:S?.deck?.length || 0, draw:combat?.draw?.length || 0, hand:combat?.hand?.length || 0, discard:combat?.discard?.length || 0 },
+    relics: (S?.relics || []).slice(0, 50),
+    currentNodeId: S?.currentNodeId || null,
+    mapSteps: S?.map?.steps?.length || 0,
+    enemy: combat?.enemy ? { id: combat.enemy.id, move: combat.enemy.currentMove?.name || null } : null,
+    settings: S?.settings || loadSettings(),
+    logTail: (combat?.log || []).slice(-20),
+    lastError: S?.lastError || null
+  };
+  return JSON.stringify(report, null, 2);
+}
+
+function copyDebugReport(){
+  const text = exportDebugReport();
+  if(navigator.clipboard?.writeText){ navigator.clipboard.writeText(text).then(()=>toast("Debug report copied.")); return; }
+  modal("Debug Report", `<pre style="white-space:pre-wrap">${text.replace(/</g,'&lt;')}</pre>`);
+}
+
+function showFatalError(error, source = "runtime"){
+  const msg = (error && (error.message || String(error))) || "Unknown error";
+  if(S) S.lastError = { source, msg, at: Date.now() };
+  G.innerHTML = `<div class="screen error-screen"><div class="panel" style="margin:12px"><h2>Something broke in the Hollow.</h2><p class="small">${msg}</p><div class="menu-list"><button onclick="recoverFromBackup()">Try Recover</button><button onclick="title()">Return to Title</button><button onclick="clearCorruptSave(); title();">Clear Active Run</button><button onclick="copyDebugReport()">Copy Error Details</button></div></div></div>`;
+}
+
+function recoverFromBackup(){
+  const raw = localStorage.getItem(RUN_BACKUP_KEY);
+  if(!raw){ toast("No backup save found."); return title(); }
+  try {
+    const parsed = JSON.parse(raw);
+    S = repairRunState(parsed?.runState ? parsed.runState : parsed);
+    hydrateSave();
+    drawWorld();
+    toast("Recovered backup save.");
+  } catch (e){
+    showFatalError(e, "backup");
+  }
+}
+
 function saveGame(options = {}){
+  const normalized = repairRunState(S);
+  if(!normalized) return;
+  S = normalized;
   const payload = { saveVersion: SAVE_VERSION, savedAt: Date.now(), runState: S };
+  backupRunSave();
   localStorage.setItem(RUN_SAVE_KEY, JSON.stringify(payload));
+  localStorage.setItem(RUN_LAST_GOOD_KEY, String(payload.savedAt));
   lastSavedAt = new Date(payload.savedAt).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
   if(!options.silent) toast("Saved.");
 }
@@ -743,13 +842,18 @@ function loadSave(){
   if(!raw) return toast("No save found.");
   try {
     const parsed = JSON.parse(raw);
-    S = migrateSave(parsed);
-    if(!S) throw new Error("bad save");
+    S = repairRunState(parsed?.runState ? parsed.runState : parsed);
+    const check = validateRunState(S);
+    if(!check.valid) throw new Error(`Invalid save: ${check.errors.join(", ")}`);
     hydrateSave();
     applySettings();
     drawWorld();
-  } catch {
-    modal("Save Error", `<p>This save is incompatible or corrupted.</p><button onclick="localStorage.removeItem('${RUN_SAVE_KEY}'); title();">Reset Save</button>`);
+  } catch (error) {
+    const backup = localStorage.getItem(RUN_BACKUP_KEY);
+    if(backup){
+      try { recoverFromBackup(); return; } catch {}
+    }
+    showFatalError(error, "loadSave");
   }
 }
 
@@ -2527,8 +2631,15 @@ if (location.search.includes("debug=1") || localStorage.getItem("ashfallDebug") 
     startCombat:(enemyId)=> startCombat(enemyId, "debug"),
     winCombat:()=> finishCombat(true),
     showMap:()=>{ setScreen("map"); drawWorld(); },
-    resetRun:()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); },
+    resetRun:()=>{ localStorage.removeItem(RUN_SAVE_KEY); location.reload(); },
     printBuildSummary:()=>console.log(computeBuildSummary()),
     simulateRewards:(count=5)=>{ for(let i=0;i<count;i++) console.log(rollCardRewardPool("combat")); }
   };
 }
+
+window.exportDebugReport = exportDebugReport;
+window.copyDebugReport = copyDebugReport;
+window.recoverFromBackup = recoverFromBackup;
+window.clearCorruptSave = clearCorruptSave;
+window.showFatalError = showFatalError;
+window.addEventListener("error", (evt)=>showFatalError(evt.error || new Error(evt.message), "window"));
