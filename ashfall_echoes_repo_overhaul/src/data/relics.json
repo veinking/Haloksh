@@ -8,7 +8,8 @@
     ],
     "stackable": false,
     "hook": "modifyDamageFirstAttack",
-    "value": 3
+    "value": 3,
+    "tier": "common"
   },
   "pilgrims_nail": {
     "name": "Saint's Buckler",
@@ -19,7 +20,8 @@
     ],
     "stackable": false,
     "hook": "firstBlockBonus",
-    "value": 3
+    "value": 3,
+    "tier": "common"
   },
   "cracked_charm": {
     "name": "Split-Second Charm",
@@ -29,7 +31,8 @@
       "tempo"
     ],
     "stackable": false,
-    "hook": "firstCardFree"
+    "hook": "firstCardFree",
+    "tier": "common"
   },
   "rusted_fang": {
     "name": "Bloodglass Thorn",
@@ -40,7 +43,8 @@
     ],
     "stackable": false,
     "hook": "bleedThorn",
-    "value": 1
+    "value": 1,
+    "tier": "uncommon"
   },
   "bellplate_charm": {
     "name": "Iron Psalm",
@@ -52,7 +56,8 @@
     "stackable": false,
     "hook": "thirdSkillBlock",
     "value": 5,
-    "unlock": "meta"
+    "unlock": "meta",
+    "tier": "uncommon"
   },
   "bone_prayer_beads": {
     "name": "Ashen Spur",
@@ -63,7 +68,8 @@
     ],
     "stackable": false,
     "hook": "firstTurnEnergy",
-    "value": 1
+    "value": 1,
+    "tier": "uncommon"
   },
   "vein_drinker": {
     "name": "Charred Wick",
@@ -74,7 +80,8 @@
     ],
     "stackable": false,
     "hook": "attackVsBurned",
-    "value": 2
+    "value": 2,
+    "tier": "rare"
   },
   "lantern_heart": {
     "name": "Mercy Thread",
@@ -84,7 +91,8 @@
       "ward"
     ],
     "stackable": false,
-    "hook": "wardLethalSave"
+    "hook": "wardLethalSave",
+    "tier": "rare"
   },
   "hollow_crown": {
     "name": "Debt Bell",
@@ -98,7 +106,8 @@
     "hook": "combatStartDebtBell",
     "curses": [
       "dissonance"
-    ]
+    ],
+    "tier": "rare"
   },
   "infant_bell": {
     "name": "Cracked Hymnal",
@@ -108,7 +117,8 @@
       "curse"
     ],
     "stackable": false,
-    "hook": "firstCurseFree"
+    "hook": "firstCurseFree",
+    "tier": "rare"
   },
   "mercy_root": {
     "name": "Stone-Vow Rosary",
@@ -120,7 +130,8 @@
     ],
     "stackable": false,
     "hook": "retainBlock",
-    "value": 3
+    "value": 3,
+    "tier": "rare"
   },
   "red_thread_spool": {
     "name": "Red Thread Spool",
@@ -130,7 +141,8 @@
       "bleed"
     ],
     "stackable": false,
-    "hook": "extraBleedTickBoss"
+    "hook": "extraBleedTickBoss",
+    "tier": "uncommon"
   },
   "butchers_prayer": {
     "name": "Butcher's Prayer",
@@ -141,7 +153,8 @@
     ],
     "stackable": false,
     "hook": "combatStartBleed",
-    "value": 2
+    "value": 2,
+    "tier": "rare"
   },
   "hollow_ink": {
     "name": "Hollow Ink",
@@ -153,7 +166,8 @@
     ],
     "stackable": false,
     "hook": "curseGainStrength",
-    "value": 1
+    "value": 1,
+    "tier": "uncommon"
   },
   "broken_metronome": {
     "name": "Broken Metronome",
@@ -164,7 +178,8 @@
     ],
     "stackable": false,
     "hook": "fourthCardDamage",
-    "value": 4
+    "value": 4,
+    "tier": "uncommon"
   },
   "ember_nail": {
     "name": "Ember Nail",
@@ -175,7 +190,8 @@
     ],
     "stackable": false,
     "hook": "burnPlusOne",
-    "value": 1
+    "value": 1,
+    "tier": "uncommon"
   },
   "furnace_saint": {
     "name": "Furnace Saint",
@@ -185,7 +201,8 @@
       "burn"
     ],
     "stackable": false,
-    "hook": "furnaceTick"
+    "hook": "furnaceTick",
+    "tier": "rare"
   },
   "wax_lantern": {
     "name": "Wax Lantern",
@@ -196,7 +213,8 @@
     ],
     "stackable": false,
     "hook": "startWard",
-    "value": 1
+    "value": 1,
+    "tier": "common"
   },
   "pale_seal": {
     "name": "Pale Seal",
@@ -208,7 +226,8 @@
     ],
     "stackable": false,
     "hook": "debuffBlockedBlock",
-    "value": 4
+    "value": 4,
+    "tier": "uncommon"
   },
   "beast_crown_splinter": {
     "name": "Beast-Crown Splinter",
@@ -219,7 +238,8 @@
     ],
     "stackable": false,
     "hook": "thirdAttackStrength",
-    "value": 1
+    "value": 1,
+    "tier": "uncommon"
   },
   "red_muscle_idol": {
     "name": "Red Muscle Idol",
@@ -231,7 +251,8 @@
     ],
     "stackable": false,
     "hook": "strengthGainBlock",
-    "value": 2
+    "value": 2,
+    "tier": "rare"
   },
   "quiet_needle": {
     "name": "Quiet Needle",
@@ -241,7 +262,8 @@
       "control"
     ],
     "stackable": false,
-    "hook": "weakPlusOne"
+    "hook": "weakPlusOne",
+    "tier": "common"
   },
   "blindfold_charm": {
     "name": "Blindfold Charm",
@@ -252,7 +274,8 @@
     ],
     "stackable": false,
     "hook": "firstEnemyAttackDown",
-    "value": 3
+    "value": 3,
+    "tier": "common"
   },
   "still_hand": {
     "name": "Still Hand",
@@ -264,6 +287,305 @@
     ],
     "stackable": false,
     "hook": "noAttackDraw",
-    "value": 1
+    "value": 1,
+    "tier": "uncommon"
+  },
+  "bleed_token_1": {
+    "name": "Bleed Token 1",
+    "text": "Minor bleed support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "bleed"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "bleed_token_2": {
+    "name": "Bleed Token 2",
+    "text": "Minor bleed support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "bleed"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "bleed_token_3": {
+    "name": "Bleed Token 3",
+    "text": "Minor bleed support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "bleed"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "block_token_1": {
+    "name": "Block Token 1",
+    "text": "Minor block support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "block"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "block_token_2": {
+    "name": "Block Token 2",
+    "text": "Minor block support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "block"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "block_token_3": {
+    "name": "Block Token 3",
+    "text": "Minor block support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "block"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "curse_token_1": {
+    "name": "Curse Token 1",
+    "text": "Minor curse support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "curse"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "curse_token_2": {
+    "name": "Curse Token 2",
+    "text": "Minor curse support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "curse"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "curse_token_3": {
+    "name": "Curse Token 3",
+    "text": "Minor curse support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "curse"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "tempo_token_1": {
+    "name": "Tempo Token 1",
+    "text": "Minor tempo support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "tempo"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "tempo_token_2": {
+    "name": "Tempo Token 2",
+    "text": "Minor tempo support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "tempo"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "tempo_token_3": {
+    "name": "Tempo Token 3",
+    "text": "Minor tempo support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "tempo"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "burn_token_1": {
+    "name": "Burn Token 1",
+    "text": "Minor burn support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "burn"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "burn_token_2": {
+    "name": "Burn Token 2",
+    "text": "Minor burn support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "burn"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "burn_token_3": {
+    "name": "Burn Token 3",
+    "text": "Minor burn support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "burn"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "ward_token_1": {
+    "name": "Ward Token 1",
+    "text": "Minor ward support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "ward"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "ward_token_2": {
+    "name": "Ward Token 2",
+    "text": "Minor ward support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "ward"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "ward_token_3": {
+    "name": "Ward Token 3",
+    "text": "Minor ward support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "ward"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "strength_token_1": {
+    "name": "Strength Token 1",
+    "text": "Minor strength support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "strength"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "strength_token_2": {
+    "name": "Strength Token 2",
+    "text": "Minor strength support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "strength"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "strength_token_3": {
+    "name": "Strength Token 3",
+    "text": "Minor strength support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "strength"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "control_token_1": {
+    "name": "Control Token 1",
+    "text": "Minor control support.",
+    "rarity": "Common",
+    "tier": "common",
+    "archetypes": [
+      "control"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "control_token_2": {
+    "name": "Control Token 2",
+    "text": "Minor control support.",
+    "rarity": "Uncommon",
+    "tier": "uncommon",
+    "archetypes": [
+      "control"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "control_token_3": {
+    "name": "Control Token 3",
+    "text": "Minor control support.",
+    "rarity": "Rare",
+    "tier": "rare",
+    "archetypes": [
+      "control"
+    ],
+    "hook": "firstBlockBonus"
+  },
+  "crown_of_cinders": {
+    "name": "Crown of Cinders",
+    "text": "+1 energy each turn. Start combat with 1 Burn.",
+    "rarity": "Rare",
+    "tier": "boss",
+    "archetypes": [
+      "burn",
+      "curse"
+    ],
+    "hook": "firstTurnEnergy"
+  },
+  "hollow_hourglass": {
+    "name": "Hollow Hourglass",
+    "text": "Gain +1 energy on odd turns; draw -1 on even turns.",
+    "rarity": "Rare",
+    "tier": "boss",
+    "archetypes": [
+      "tempo",
+      "control"
+    ],
+    "hook": "firstTurnEnergy"
+  },
+  "saints_ribcage": {
+    "name": "Saint's Ribcage",
+    "text": "Start each combat with 10 Block and 1 Ward. Max HP -8.",
+    "rarity": "Rare",
+    "tier": "boss",
+    "archetypes": [
+      "block",
+      "ward"
+    ],
+    "hook": "startWard"
+  },
+  "debt_sun": {
+    "name": "Debt Sun",
+    "text": "Shops cost less. Add Dissonance after elite fights.",
+    "rarity": "Rare",
+    "tier": "boss",
+    "archetypes": [
+      "curse",
+      "tempo"
+    ],
+    "hook": "combatStartDebtBell",
+    "curses": [
+      "dissonance"
+    ]
+  },
+  "red_engine": {
+    "name": "Red Engine",
+    "text": "Every 5th card deals 10 damage. Start combats with 1 Bleed.",
+    "rarity": "Rare",
+    "tier": "boss",
+    "archetypes": [
+      "bleed",
+      "strength"
+    ],
+    "hook": "fourthCardDamage"
   }
 }

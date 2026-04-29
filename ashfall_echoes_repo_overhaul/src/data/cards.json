@@ -199,7 +199,10 @@
     "archetypes": [
       "block",
       "ward"
-    ]
+    ],
+    "upgradedName": "Ashen Guard+",
+    "upgradedText": "Gain 8 Block. If a Curse is in hand, gain +4.",
+    "upgrade": {}
   },
   "counter_bell": {
     "name": "Counter Bell",
@@ -236,7 +239,10 @@
     "block": 17,
     "archetypes": [
       "block"
-    ]
+    ],
+    "upgradedName": "Iron Prayer+",
+    "upgradedText": "Gain 17 Block.",
+    "upgrade": {}
   },
   "fortify": {
     "name": "Fortify",
@@ -340,7 +346,10 @@
     "draw": 2,
     "archetypes": [
       "tempo"
-    ]
+    ],
+    "upgradedName": "Pain Dividend+",
+    "upgradedText": "Lose 3 HP. Draw 2.",
+    "upgrade": {}
   },
   "last_pulse": {
     "name": "Last Pulse",
@@ -472,7 +481,10 @@
     "archetypes": [
       "burn",
       "control"
-    ]
+    ],
+    "upgradedName": "Memory Wick+",
+    "upgradedText": "Whenever you Exhaust a card, deal 3 damage and apply 1 Burn.",
+    "upgrade": {}
   },
   "hollow_bind": {
     "name": "Hollow Bind",
@@ -491,7 +503,10 @@
     "archetypes": [
       "curse",
       "control"
-    ]
+    ],
+    "upgradedName": "Hollow Bind+",
+    "upgradedText": "Apply 2 Weak. Add Dissonance to discard.",
+    "upgrade": {}
   },
   "dissonant_hymn": {
     "name": "Dissonant Hymn",
@@ -513,7 +528,10 @@
     "archetypes": [
       "curse",
       "control"
-    ]
+    ],
+    "upgradedName": "Dissonant Hymn+",
+    "upgradedText": "Apply 3 Weak to enemy. Add 2 Dissonance to draw pile.",
+    "upgrade": {}
   },
   "rot_bloom": {
     "name": "Rot Bloom",
@@ -530,7 +548,10 @@
     "archetypes": [
       "curse",
       "burn"
-    ]
+    ],
+    "upgradedName": "Rot Bloom+",
+    "upgradedText": "Add Rot. Deal 18 damage.",
+    "upgrade": {}
   },
   "mercy_bloom": {
     "name": "Mercy Bloom",
@@ -546,7 +567,10 @@
     "archetypes": [
       "curse",
       "ward"
-    ]
+    ],
+    "upgradedName": "Mercy Bloom+",
+    "upgradedText": "Heal 5. Add Rot to discard.",
+    "upgrade": {}
   },
   "dissonance": {
     "name": "Dissonance",
@@ -561,7 +585,10 @@
     "endTurnDamage": 2,
     "archetypes": [
       "curse"
-    ]
+    ],
+    "upgradedName": "Dissonance+",
+    "upgradedText": "Unplayable. At end of turn, lose 2 HP.",
+    "upgrade": {}
   },
   "rot": {
     "name": "Rot",
@@ -579,7 +606,10 @@
     },
     "archetypes": [
       "curse"
-    ]
+    ],
+    "upgradedName": "Rot+",
+    "upgradedText": "Unplayable. When drawn, reduce healing this combat.",
+    "upgrade": {}
   },
   "bell_slam": {
     "name": "Bell Slam",
@@ -608,5 +638,693 @@
       "control",
       "burn"
     ]
+  },
+  "bleed_common_rite": {
+    "name": "Bleed Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "bleed",
+      "block"
+    ],
+    "upgradedName": "Bleed Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "bleed_uncommon_edge": {
+    "name": "Bleed Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "bleed",
+      "tempo"
+    ],
+    "upgradedName": "Bleed Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "block_common_rite": {
+    "name": "Block Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "block",
+      "block"
+    ],
+    "upgradedName": "Block Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "block_uncommon_edge": {
+    "name": "Block Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "block",
+      "tempo"
+    ],
+    "upgradedName": "Block Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "curse_common_rite": {
+    "name": "Curse Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "curse",
+      "block"
+    ],
+    "upgradedName": "Curse Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "curse_uncommon_edge": {
+    "name": "Curse Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "curse",
+      "tempo"
+    ],
+    "upgradedName": "Curse Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "tempo_common_rite": {
+    "name": "Tempo Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "tempo",
+      "block"
+    ],
+    "upgradedName": "Tempo Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "tempo_uncommon_edge": {
+    "name": "Tempo Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "tempo",
+      "tempo"
+    ],
+    "upgradedName": "Tempo Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "burn_common_rite": {
+    "name": "Burn Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "burn",
+      "block"
+    ],
+    "upgradedName": "Burn Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "burn_uncommon_edge": {
+    "name": "Burn Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "burn",
+      "tempo"
+    ],
+    "upgradedName": "Burn Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "ward_common_rite": {
+    "name": "Ward Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "ward",
+      "block"
+    ],
+    "upgradedName": "Ward Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "ward_uncommon_edge": {
+    "name": "Ward Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "ward",
+      "tempo"
+    ],
+    "upgradedName": "Ward Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "strength_common_rite": {
+    "name": "Strength Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "strength",
+      "block"
+    ],
+    "upgradedName": "Strength Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "strength_uncommon_edge": {
+    "name": "Strength Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "strength",
+      "tempo"
+    ],
+    "upgradedName": "Strength Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "control_common_rite": {
+    "name": "Control Rite",
+    "cost": 1,
+    "type": "Skill",
+    "rarity": "common",
+    "text": "Gain 5 Block.",
+    "effects": [
+      {
+        "type": "block",
+        "amount": 5
+      }
+    ],
+    "archetypes": [
+      "control",
+      "block"
+    ],
+    "upgradedName": "Control Rite+",
+    "upgradedText": "Gain 8 Block.",
+    "upgrade": {
+      "block": 8
+    }
+  },
+  "control_uncommon_edge": {
+    "name": "Control Edge",
+    "cost": 1,
+    "type": "Attack",
+    "rarity": "uncommon",
+    "text": "Deal 8 damage.",
+    "effects": [
+      {
+        "type": "damage",
+        "amount": 8
+      }
+    ],
+    "archetypes": [
+      "control",
+      "tempo"
+    ],
+    "upgradedName": "Control Edge+",
+    "upgradedText": "Deal 11 damage.",
+    "upgrade": {
+      "damage": 11
+    }
+  },
+  "crimson_scripture": {
+    "name": "Crimson Scripture",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Apply 5 Bleed.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "crimson_scripture"
+      }
+    ],
+    "archetypes": [
+      "bleed"
+    ],
+    "upgradedName": "Crimson Scripture+",
+    "upgradedText": "Apply 7 Bleed.",
+    "upgrade": {
+      "text": "Apply 7 Bleed."
+    }
+  },
+  "red_harvest": {
+    "name": "Red Harvest",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Deal 4 damage per Bleed, then halve Bleed.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "red_harvest"
+      }
+    ],
+    "archetypes": [
+      "bleed"
+    ],
+    "upgradedName": "Red Harvest+",
+    "upgradedText": "Deal 5 damage per Bleed, then halve Bleed.",
+    "upgrade": {
+      "text": "Deal 5 damage per Bleed, then halve Bleed."
+    }
+  },
+  "cathedral_stance": {
+    "name": "Cathedral Stance",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Gain 18 Block. Retain 8 next turn.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "cathedral_stance"
+      }
+    ],
+    "archetypes": [
+      "block"
+    ],
+    "upgradedName": "Cathedral Stance+",
+    "upgradedText": "Gain 24 Block. Retain 10 next turn.",
+    "upgrade": {
+      "text": "Gain 24 Block. Retain 10 next turn."
+    }
+  },
+  "iron_benediction": {
+    "name": "Iron Benediction",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Gain Block equal to discard pile size + 6.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "iron_benediction"
+      }
+    ],
+    "archetypes": [
+      "block"
+    ],
+    "upgradedName": "Iron Benediction+",
+    "upgradedText": "Gain Block equal to discard pile size + 10.",
+    "upgrade": {
+      "text": "Gain Block equal to discard pile size + 10."
+    }
+  },
+  "choir_of_static": {
+    "name": "Choir Of Static",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Add 2 Dissonance to hand. Gain 2 energy and draw 3.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "choir_of_static"
+      }
+    ],
+    "archetypes": [
+      "curse"
+    ],
+    "upgradedName": "Choir Of Static+",
+    "upgradedText": "Add 1 Dissonance to hand. Gain 2 energy and draw 4.",
+    "upgrade": {
+      "text": "Add 1 Dissonance to hand. Gain 2 energy and draw 4."
+    }
+  },
+  "black_contract": {
+    "name": "Black Contract",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Gain 3 Strength. Add Dissonance to draw and discard.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "black_contract"
+      }
+    ],
+    "archetypes": [
+      "curse"
+    ],
+    "upgradedName": "Black Contract+",
+    "upgradedText": "Gain 4 Strength. Add 1 Dissonance to draw.",
+    "upgrade": {
+      "text": "Gain 4 Strength. Add 1 Dissonance to draw."
+    }
+  },
+  "no_second_bell": {
+    "name": "No Second Bell",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Draw until you have 6 cards. First drawn costs 0.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "no_second_bell"
+      }
+    ],
+    "archetypes": [
+      "tempo"
+    ],
+    "upgradedName": "No Second Bell+",
+    "upgradedText": "Draw until you have 7 cards. First two drawn cost 0.",
+    "upgrade": {
+      "text": "Draw until you have 7 cards. First two drawn cost 0."
+    }
+  },
+  "flash_pilgrimage": {
+    "name": "Flash Pilgrimage",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Play top attack from draw pile for free.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "flash_pilgrimage"
+      }
+    ],
+    "archetypes": [
+      "tempo"
+    ],
+    "upgradedName": "Flash Pilgrimage+",
+    "upgradedText": "Play top attack from draw pile and draw 1.",
+    "upgrade": {
+      "text": "Play top attack from draw pile and draw 1."
+    }
+  },
+  "furnace_psalm": {
+    "name": "Furnace Psalm",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Apply 6 Burn. Burn does not decay this turn.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "furnace_psalm"
+      }
+    ],
+    "archetypes": [
+      "burn"
+    ],
+    "upgradedName": "Furnace Psalm+",
+    "upgradedText": "Apply 8 Burn. Burn does not decay this turn.",
+    "upgrade": {
+      "text": "Apply 8 Burn. Burn does not decay this turn."
+    }
+  },
+  "ashen_bloom": {
+    "name": "Ashen Bloom",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Deal damage equal to twice enemy Burn.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "ashen_bloom"
+      }
+    ],
+    "archetypes": [
+      "burn"
+    ],
+    "upgradedName": "Ashen Bloom+",
+    "upgradedText": "Deal damage equal to 3x enemy Burn.",
+    "upgrade": {
+      "text": "Deal damage equal to 3x enemy Burn."
+    }
+  },
+  "sacred_wax": {
+    "name": "Sacred Wax",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Gain 2 Ward. If Ward blocks debuff, draw 2.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "sacred_wax"
+      }
+    ],
+    "archetypes": [
+      "ward"
+    ],
+    "upgradedName": "Sacred Wax+",
+    "upgradedText": "Gain 3 Ward. If Ward blocks debuff, draw 2.",
+    "upgrade": {
+      "text": "Gain 3 Ward. If Ward blocks debuff, draw 2."
+    }
+  },
+  "lantern_body": {
+    "name": "Lantern Body",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Gain 12 Block and 1 Ward. Draw 1.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "lantern_body"
+      }
+    ],
+    "archetypes": [
+      "ward"
+    ],
+    "upgradedName": "Lantern Body+",
+    "upgradedText": "Gain 16 Block and 1 Ward. Draw 1.",
+    "upgrade": {
+      "text": "Gain 16 Block and 1 Ward. Draw 1."
+    }
+  },
+  "beast_crown": {
+    "name": "Beast Crown",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Gain 3 Strength. Lose 5 HP.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "beast_crown"
+      }
+    ],
+    "archetypes": [
+      "strength"
+    ],
+    "upgradedName": "Beast Crown+",
+    "upgradedText": "Gain 4 Strength. Lose 4 HP.",
+    "upgrade": {
+      "text": "Gain 4 Strength. Lose 4 HP."
+    }
+  },
+  "red_saints_arm": {
+    "name": "Red Saints Arm",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Deal 8 damage twice.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "red_saints_arm"
+      }
+    ],
+    "archetypes": [
+      "strength"
+    ],
+    "upgradedName": "Red Saints Arm+",
+    "upgradedText": "Deal 10 damage twice.",
+    "upgrade": {
+      "text": "Deal 10 damage twice."
+    }
+  },
+  "hollow_silence": {
+    "name": "Hollow Silence",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Apply 3 Weak and 2 Frail.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "hollow_silence"
+      }
+    ],
+    "archetypes": [
+      "control"
+    ],
+    "upgradedName": "Hollow Silence+",
+    "upgradedText": "Apply 4 Weak and 3 Frail.",
+    "upgrade": {
+      "text": "Apply 4 Weak and 3 Frail."
+    }
+  },
+  "still_world": {
+    "name": "Still World",
+    "cost": 2,
+    "type": "Skill",
+    "rarity": "rare",
+    "text": "Apply 2 Weak and reduce enemy damage this turn.",
+    "effects": [
+      {
+        "type": "custom",
+        "id": "still_world"
+      }
+    ],
+    "archetypes": [
+      "control"
+    ],
+    "upgradedName": "Still World+",
+    "upgradedText": "Apply 3 Weak and 1 Frail.",
+    "upgrade": {
+      "text": "Apply 3 Weak and 1 Frail."
+    }
   }
 }

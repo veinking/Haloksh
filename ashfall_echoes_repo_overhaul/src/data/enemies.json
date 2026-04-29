@@ -5,7 +5,10 @@
     "hp": 24,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["tempo", "bleed"],
+    "archetypes": [
+      "tempo",
+      "bleed"
+    ],
     "description": "A soot-slick scavenger that rushes in and out of range.",
     "behaviorHint": "Fast opener with repeated scratches.",
     "moves": [
@@ -38,7 +41,10 @@
     "hp": 34,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["block", "tempo"],
+    "archetypes": [
+      "block",
+      "tempo"
+    ],
     "description": "A rank-and-file husk that keeps clean form even in death.",
     "behaviorHint": "Alternates guarded stance with precise thrusts.",
     "moves": [
@@ -67,7 +73,10 @@
     "hp": 36,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["control", "ward"],
+    "archetypes": [
+      "control",
+      "ward"
+    ],
     "description": "A prayer-worn wanderer who snuffs resolve with smoke.",
     "behaviorHint": "Applies Weak before following up with modest strikes.",
     "moves": [
@@ -98,7 +107,10 @@
     "hp": 33,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["burn", "tempo"],
+    "archetypes": [
+      "burn",
+      "tempo"
+    ],
     "description": "An ember-choked corpse that leaves flame in every wound.",
     "behaviorHint": "Sets up Burn before escalating damage.",
     "moves": [
@@ -132,7 +144,10 @@
     "hp": 42,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["strength", "block"],
+    "archetypes": [
+      "strength",
+      "block"
+    ],
     "description": "A toll-keeper who builds momentum from stolen remains.",
     "behaviorHint": "Grows Strength over time and punishes long fights.",
     "moves": [
@@ -171,7 +186,10 @@
     "hp": 30,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["curse", "control"],
+    "archetypes": [
+      "curse",
+      "control"
+    ],
     "description": "A hollow supplicant who pays its debts by sharing them.",
     "behaviorHint": "Adds Dissonance and chips away while you stumble.",
     "moves": [
@@ -200,7 +218,10 @@
     "hp": 26,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["tempo", "control"],
+    "archetypes": [
+      "tempo",
+      "control"
+    ],
     "description": "A carrion thing that pecks in blurring arcs.",
     "behaviorHint": "Frequent multi-hit pressure and occasional evasive block.",
     "moves": [
@@ -230,7 +251,10 @@
     "hp": 40,
     "tier": "normal",
     "act": 1,
-    "archetypes": ["block", "ward"],
+    "archetypes": [
+      "block",
+      "ward"
+    ],
     "description": "A blind larva wrapped in sanctified clay and weak miracles.",
     "behaviorHint": "Slow, defensive turns with small self-heals.",
     "moves": [
@@ -267,10 +291,15 @@
     "hp": 96,
     "tier": "elite",
     "act": 1,
-    "archetypes": ["block", "strength"],
+    "archetypes": [
+      "block",
+      "strength"
+    ],
     "description": "A bell-bound knight whose vows harden into iron.",
     "behaviorHint": "Gets stronger whenever it finishes a turn with Block.",
-    "specialRules": ["gainStrengthIfBlocked"],
+    "specialRules": [
+      "gainStrengthIfBlocked"
+    ],
     "moves": [
       {
         "id": "shield_sermon",
@@ -307,7 +336,10 @@
     "hp": 88,
     "tier": "elite",
     "act": 1,
-    "archetypes": ["curse", "tempo"],
+    "archetypes": [
+      "curse",
+      "tempo"
+    ],
     "description": "Every toll from its rusted bell steals a beat from your breath.",
     "behaviorHint": "Floods your piles with Dissonance and drains energy rhythm.",
     "moves": [
@@ -346,7 +378,10 @@
     "hp": 92,
     "tier": "elite",
     "act": 1,
-    "archetypes": ["bleed", "control"],
+    "archetypes": [
+      "bleed",
+      "control"
+    ],
     "description": "A predatory relic-beast that smells fresh blood through ash storms.",
     "behaviorHint": "Applies Bleed and spikes damage once you are marked.",
     "moves": [
@@ -394,7 +429,11 @@
     "hp": 250,
     "tier": "boss",
     "act": 1,
-    "archetypes": ["control", "curse", "strength"],
+    "archetypes": [
+      "control",
+      "curse",
+      "strength"
+    ],
     "description": "A living gate whose iris opens only for the worthy and the doomed.",
     "behaviorHint": "Phase boss: shifts at 65% and 35% HP thresholds.",
     "phaseName": "Closed Eye",
@@ -510,6 +549,428 @@
               "Frail": 1
             },
             "weight": 2
+          }
+        ]
+      }
+    ]
+  },
+  "act1_normal_1": {
+    "name": "Hollow Drifter 1",
+    "tier": "normal",
+    "act": 1,
+    "hp": 25,
+    "archetypes": [
+      "block"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 6,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_2": {
+    "name": "Hollow Drifter 2",
+    "tier": "normal",
+    "act": 1,
+    "hp": 26,
+    "archetypes": [
+      "curse"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 6,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_3": {
+    "name": "Hollow Drifter 3",
+    "tier": "normal",
+    "act": 1,
+    "hp": 27,
+    "archetypes": [
+      "tempo"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 6,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_4": {
+    "name": "Hollow Drifter 4",
+    "tier": "normal",
+    "act": 1,
+    "hp": 38,
+    "archetypes": [
+      "burn"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 8,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_5": {
+    "name": "Hollow Drifter 5",
+    "tier": "normal",
+    "act": 1,
+    "hp": 39,
+    "archetypes": [
+      "ward"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 8,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_6": {
+    "name": "Hollow Drifter 6",
+    "tier": "normal",
+    "act": 1,
+    "hp": 40,
+    "archetypes": [
+      "strength"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 8,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_7": {
+    "name": "Hollow Drifter 7",
+    "tier": "normal",
+    "act": 1,
+    "hp": 52,
+    "archetypes": [
+      "control"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 10,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "act1_normal_8": {
+    "name": "Hollow Drifter 8",
+    "tier": "normal",
+    "act": 1,
+    "hp": 53,
+    "archetypes": [
+      "bleed"
+    ],
+    "description": "A roaming hollow.",
+    "behaviorHint": "Alternates strikes and setup.",
+    "moves": [
+      {
+        "id": "jab",
+        "name": "Jab",
+        "intentIcon": "attack",
+        "intentText": "Deal 7",
+        "damage": 10,
+        "weight": 2
+      },
+      {
+        "id": "guard",
+        "name": "Guard",
+        "intentIcon": "defend",
+        "intentText": "Gain 6 Block",
+        "block": 6,
+        "weight": 1
+      }
+    ]
+  },
+  "cinder_nun": {
+    "name": "Cinder Nun",
+    "tier": "elite",
+    "act": 1,
+    "hp": 82,
+    "archetypes": [
+      "burn",
+      "control"
+    ],
+    "description": "Burning discipline and punishment.",
+    "behaviorHint": "Escalates Burn and Weak.",
+    "moves": [
+      {
+        "id": "ember_blessing",
+        "name": "Ember Blessing",
+        "intentIcon": "debuff",
+        "intentText": "Apply Burn 3",
+        "playerStatus": {
+          "Burn": 3
+        },
+        "weight": 2
+      },
+      {
+        "id": "ash_rebuke",
+        "name": "Ash Rebuke",
+        "intentIcon": "attack",
+        "intentText": "Deal 11 and Weak 1",
+        "damage": 11,
+        "playerStatus": {
+          "Weak": 1
+        },
+        "weight": 2
+      },
+      {
+        "id": "chapel_flame",
+        "name": "Chapel Flame",
+        "intentIcon": "attack",
+        "intentText": "Deal 6 twice",
+        "damage": 6,
+        "hits": 2,
+        "weight": 1
+      }
+    ]
+  },
+  "debt_collector": {
+    "name": "The Debt Collector",
+    "tier": "elite",
+    "act": 1,
+    "hp": 88,
+    "archetypes": [
+      "curse",
+      "tempo"
+    ],
+    "description": "Taxes your turns.",
+    "behaviorHint": "Adds Dissonance and drains energy.",
+    "moves": [
+      {
+        "id": "interest_due",
+        "name": "Interest Due",
+        "intentIcon": "debuff",
+        "intentText": "Add Dissonance to hand",
+        "addTemporaryCardToHand": "dissonance",
+        "weight": 2
+      },
+      {
+        "id": "broken_contract",
+        "name": "Broken Contract",
+        "intentIcon": "attack",
+        "intentText": "Deal 13",
+        "damage": 13,
+        "weight": 2
+      },
+      {
+        "id": "compound_toll",
+        "name": "Compound Toll",
+        "intentIcon": "debuff",
+        "intentText": "Drain 1 energy next turn and Frail 1",
+        "drainEnergyNextTurn": 1,
+        "playerStatus": {
+          "Frail": 1
+        },
+        "weight": 1
+      }
+    ]
+  },
+  "mother_of_cinders": {
+    "name": "Mother of Cinders",
+    "tier": "boss",
+    "act": 1,
+    "hp": 220,
+    "archetypes": [
+      "burn",
+      "control"
+    ],
+    "description": "A burned saint with three trials.",
+    "behaviorHint": "Shifts phases at 65% and 35% HP.",
+    "moves": [
+      {
+        "id": "ember_touch",
+        "name": "Ember Touch",
+        "intentIcon": "attack",
+        "intentText": "Deal 9, Burn 2",
+        "damage": 9,
+        "playerStatus": {
+          "Burn": 2
+        },
+        "weight": 2
+      }
+    ],
+    "phases": [
+      {
+        "name": "Choir Ignites",
+        "threshold": 0.65,
+        "onEnter": {
+          "playerStatus": {
+            "Burn": 2
+          },
+          "selfStatus": {
+            "Strength": 1
+          }
+        },
+        "moves": [
+          {
+            "id": "chapel_flame",
+            "name": "Chapel Flame",
+            "intentIcon": "attack",
+            "intentText": "Deal 6 x3",
+            "damage": 6,
+            "hits": 3
+          },
+          {
+            "id": "burning_hymn",
+            "name": "Burning Hymn",
+            "intentIcon": "debuff",
+            "intentText": "Apply Burn 4",
+            "playerStatus": {
+              "Burn": 4
+            }
+          },
+          {
+            "id": "smoke_lung",
+            "name": "Smoke-Lung",
+            "intentIcon": "debuff",
+            "intentText": "Apply Frail 1 and Weak 1",
+            "playerStatus": {
+              "Frail": 1,
+              "Weak": 1
+            }
+          }
+        ]
+      },
+      {
+        "name": "Saintfire Body",
+        "threshold": 0.35,
+        "onEnter": {
+          "selfStatus": {
+            "Strength": 3
+          },
+          "block": 10
+        },
+        "moves": [
+          {
+            "id": "saintfire_crush",
+            "name": "Saintfire Crush",
+            "intentIcon": "attack",
+            "intentText": "Deal 20",
+            "damage": 20
+          },
+          {
+            "id": "ash_storm",
+            "name": "Ash Storm",
+            "intentIcon": "attack",
+            "intentText": "Deal 5 x4",
+            "damage": 5,
+            "hits": 4
+          },
+          {
+            "id": "last_candle",
+            "name": "Last Candle",
+            "intentIcon": "attack",
+            "intentText": "Apply Burn 3 then deal 12",
+            "playerStatus": {
+              "Burn": 3
+            },
+            "damage": 12
           }
         ]
       }

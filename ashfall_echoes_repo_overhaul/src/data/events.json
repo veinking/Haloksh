@@ -4,12 +4,37 @@
     "title": "The Crooked Shrine",
     "description": "Incense burns where no flame lives. The stone asks what memory you can spare.",
     "act": 1,
-    "tags": ["healing", "curse", "relic"],
+    "tags": [
+      "healing",
+      "curse",
+      "relic"
+    ],
     "weight": 10,
     "choices": [
-      {"text": "Pray at the bent altar", "description": "Heal 25% max HP, but take Dissonance.", "effects": { "gainHP": "25%", "addCurse": "dissonance" }, "resultText": "Warmth returns to your chest-lantern, and a discordant memory clings to your tongue."},
-      {"text": "Offer blood", "description": "Lose 8 HP. Gain a random relic.", "effects": { "loseHP": 8, "gainRandomRelic": 1 }, "resultText": "The shrine drinks deeply. In return, it coughs up an old relic."},
-      {"text": "Walk away", "description": "Leave the shrine untouched.", "effects": {}, "resultText": "Not every vow needs answering."}
+      {
+        "text": "Pray at the bent altar",
+        "description": "Heal 25% max HP, but take Dissonance.",
+        "effects": {
+          "gainHP": "25%",
+          "addCurse": "dissonance"
+        },
+        "resultText": "Warmth returns to your chest-lantern, and a discordant memory clings to your tongue."
+      },
+      {
+        "text": "Offer blood",
+        "description": "Lose 8 HP. Gain a random relic.",
+        "effects": {
+          "loseHP": 8,
+          "gainRandomRelic": 1
+        },
+        "resultText": "The shrine drinks deeply. In return, it coughs up an old relic."
+      },
+      {
+        "text": "Walk away",
+        "description": "Leave the shrine untouched.",
+        "effects": {},
+        "resultText": "Not every vow needs answering."
+      }
     ]
   },
   {
@@ -17,12 +42,43 @@
     "title": "Door With No Wall",
     "description": "A lone door stands in ash, frame and hinges attached to nothing.",
     "act": 1,
-    "tags": ["combat", "ward", "upgrade"],
+    "tags": [
+      "combat",
+      "ward",
+      "upgrade"
+    ],
     "weight": 8,
     "choices": [
-      {"text": "Open it", "description": "Fight what waits beyond. If you survive, gain an upgraded card.", "effects": { "startCombat": "normal", "gainRandomCard": { "rarity": "uncommon", "upgraded": true } }, "resultText": "The threshold bites. Something inside takes offense at being found."},
-      {"text": "Knock first", "description": "Gain 1 Ward for next combat. Lose 5 Echoes.", "requirements": { "minGold": 5 }, "effects": { "loseGold": 5, "gainWard": 1 }, "resultText": "A polite knock earns a whispered blessing and an empty purse."},
-      {"text": "Ignore the door", "description": "Leave.", "effects": {}, "resultText": "You refuse to open what should not exist."}
+      {
+        "text": "Open it",
+        "description": "Fight what waits beyond. If you survive, gain an upgraded card.",
+        "effects": {
+          "startCombat": "normal",
+          "gainRandomCard": {
+            "rarity": "uncommon",
+            "upgraded": true
+          }
+        },
+        "resultText": "The threshold bites. Something inside takes offense at being found."
+      },
+      {
+        "text": "Knock first",
+        "description": "Gain 1 Ward for next combat. Lose 5 Echoes.",
+        "requirements": {
+          "minGold": 5
+        },
+        "effects": {
+          "loseGold": 5,
+          "gainWard": 1
+        },
+        "resultText": "A polite knock earns a whispered blessing and an empty purse."
+      },
+      {
+        "text": "Ignore the door",
+        "description": "Leave.",
+        "effects": {},
+        "resultText": "You refuse to open what should not exist."
+      }
     ]
   },
   {
@@ -30,12 +86,47 @@
     "title": "The Debt Keeper",
     "description": "A saintly merchant opens a ledger to a page already bearing your name.",
     "act": 1,
-    "tags": ["economy", "curse", "remove"],
+    "tags": [
+      "economy",
+      "curse",
+      "remove"
+    ],
     "weight": 10,
     "choices": [
-      {"text": "Take the loan", "description": "Gain 60 Echoes. Add Dissonance.", "effects": { "gainGold": 60, "addCurse": "dissonance" }, "resultText": "Coins clatter into your palm. The debt settles in your ribs."},
-      {"text": "Pay tribute", "description": "Spend 40 Echoes to remove a card.", "requirements": { "minGold": 40, "minDeck": 1 }, "effects": { "loseGold": 40, "removeCard": true }, "resultText": "The Keeper tears a page from your history."},
-      {"text": "Refuse the ledger", "description": "Gain Weak 1 next combat.", "effects": { "gainStatus": { "nextCombat": { "Weak": 1 } } }, "resultText": "The Keeper smiles. Refusal also accrues interest."}
+      {
+        "text": "Take the loan",
+        "description": "Gain 60 Echoes. Add Dissonance.",
+        "effects": {
+          "gainGold": 60,
+          "addCurse": "dissonance"
+        },
+        "resultText": "Coins clatter into your palm. The debt settles in your ribs."
+      },
+      {
+        "text": "Pay tribute",
+        "description": "Spend 40 Echoes to remove a card.",
+        "requirements": {
+          "minGold": 40,
+          "minDeck": 1
+        },
+        "effects": {
+          "loseGold": 40,
+          "removeCard": true
+        },
+        "resultText": "The Keeper tears a page from your history."
+      },
+      {
+        "text": "Refuse the ledger",
+        "description": "Gain Weak 1 next combat.",
+        "effects": {
+          "gainStatus": {
+            "nextCombat": {
+              "Weak": 1
+            }
+          }
+        },
+        "resultText": "The Keeper smiles. Refusal also accrues interest."
+      }
     ]
   },
   {
@@ -43,12 +134,41 @@
     "title": "Blackened Casket",
     "description": "A sealed casket breathes in shallow, patient rhythms.",
     "act": 1,
-    "tags": ["relic", "rare", "curse"],
+    "tags": [
+      "relic",
+      "rare",
+      "curse"
+    ],
     "weight": 7,
     "choices": [
-      {"text": "Break it open", "description": "Gain a relic. Take 10 damage.", "effects": { "gainRandomRelic": 1, "loseHP": 10 }, "resultText": "Wood splinters. Something ancient and useful crawls free."},
-      {"text": "Press your ear to it", "description": "Gain a random rare card and a curse.", "effects": { "gainRandomCard": { "rarity": "rare" }, "addCurse": "dissonance" }, "resultText": "The casket teaches you a forbidden pattern, then laughs."},
-      {"text": "Leave it sealed", "description": "Gain 15 Echoes.", "effects": { "gainGold": 15 }, "resultText": "You walk away richer and only slightly haunted."}
+      {
+        "text": "Break it open",
+        "description": "Gain a relic. Take 10 damage.",
+        "effects": {
+          "gainRandomRelic": 1,
+          "loseHP": 10
+        },
+        "resultText": "Wood splinters. Something ancient and useful crawls free."
+      },
+      {
+        "text": "Press your ear to it",
+        "description": "Gain a random rare card and a curse.",
+        "effects": {
+          "gainRandomCard": {
+            "rarity": "rare"
+          },
+          "addCurse": "dissonance"
+        },
+        "resultText": "The casket teaches you a forbidden pattern, then laughs."
+      },
+      {
+        "text": "Leave it sealed",
+        "description": "Gain 15 Echoes.",
+        "effects": {
+          "gainGold": 15
+        },
+        "resultText": "You walk away richer and only slightly haunted."
+      }
     ]
   },
   {
@@ -56,12 +176,44 @@
     "title": "Lanternless Child",
     "description": "A small voice asks for flame, though no face can be seen beneath the hood.",
     "act": 1,
-    "tags": ["map", "ward", "curse"],
+    "tags": [
+      "map",
+      "ward",
+      "curse"
+    ],
     "weight": 8,
     "choices": [
-      {"text": "Share your flame", "description": "Lose 20 Echoes. Gain Ward 1 and a random relic.", "requirements": { "minGold": 20 }, "effects": { "loseGold": 20, "gainWard": 1, "gainRandomRelic": 1 }, "resultText": "The child bows. A relic is left in the ash where it stood."},
-      {"text": "Ask for directions", "description": "Reveal nearby routes and scout elite signs.", "effects": { "revealNextNodes": true, "scoutElite": true, "gainMapVision": 1 }, "resultText": "Tiny fingers sketch paths in soot, and danger gains a name."},
-      {"text": "Turn away", "description": "Add a temporary Dissonance next combat.", "effects": { "addTemporaryCurse": "dissonance" }, "resultText": "The silence behind you is accusatory."}
+      {
+        "text": "Share your flame",
+        "description": "Lose 20 Echoes. Gain Ward 1 and a random relic.",
+        "requirements": {
+          "minGold": 20
+        },
+        "effects": {
+          "loseGold": 20,
+          "gainWard": 1,
+          "gainRandomRelic": 1
+        },
+        "resultText": "The child bows. A relic is left in the ash where it stood."
+      },
+      {
+        "text": "Ask for directions",
+        "description": "Reveal nearby routes and scout elite signs.",
+        "effects": {
+          "revealNextNodes": true,
+          "scoutElite": true,
+          "gainMapVision": 1
+        },
+        "resultText": "Tiny fingers sketch paths in soot, and danger gains a name."
+      },
+      {
+        "text": "Turn away",
+        "description": "Add a temporary Dissonance next combat.",
+        "effects": {
+          "addTemporaryCurse": "dissonance"
+        },
+        "resultText": "The silence behind you is accusatory."
+      }
     ]
   },
   {
@@ -69,12 +221,48 @@
     "title": "Mirror of Old Skin",
     "description": "Your reflection wears a version of you that survived better.",
     "act": 1,
-    "tags": ["deck", "transform", "upgrade", "remove"],
+    "tags": [
+      "deck",
+      "transform",
+      "upgrade",
+      "remove"
+    ],
     "weight": 9,
     "choices": [
-      {"text": "Rewrite the reflection", "description": "Transform a card.", "requirements": { "minDeck": 1 }, "effects": { "transformCard": true }, "resultText": "One memory peels off and returns as something new."},
-      {"text": "Preserve this shape", "description": "Upgrade a card.", "requirements": { "minUpgradeable": 1 }, "effects": { "upgradeChosenCard": true }, "resultText": "You keep what works and sharpen it."},
-      {"text": "Shatter the glass", "description": "Remove a card. Lose 6 HP.", "requirements": { "minDeck": 1 }, "effects": { "removeCard": true, "loseHP": 6 }, "resultText": "The mirror breaks. So does one of your old burdens."}
+      {
+        "text": "Rewrite the reflection",
+        "description": "Transform a card.",
+        "requirements": {
+          "minDeck": 1
+        },
+        "effects": {
+          "transformCard": true
+        },
+        "resultText": "One memory peels off and returns as something new."
+      },
+      {
+        "text": "Preserve this shape",
+        "description": "Upgrade a card.",
+        "requirements": {
+          "minUpgradeable": 1
+        },
+        "effects": {
+          "upgradeChosenCard": true
+        },
+        "resultText": "You keep what works and sharpen it."
+      },
+      {
+        "text": "Shatter the glass",
+        "description": "Remove a card. Lose 6 HP.",
+        "requirements": {
+          "minDeck": 1
+        },
+        "effects": {
+          "removeCard": true,
+          "loseHP": 6
+        },
+        "resultText": "The mirror breaks. So does one of your old burdens."
+      }
     ]
   },
   {
@@ -82,12 +270,47 @@
     "title": "The Hanging Bell",
     "description": "A bronze bell hangs from black rope. Its clapper is a tooth.",
     "act": 1,
-    "tags": ["strength", "bleed", "relic", "curse"],
+    "tags": [
+      "strength",
+      "bleed",
+      "relic",
+      "curse"
+    ],
     "weight": 8,
     "choices": [
-      {"text": "Ring once", "description": "Gain Strength 1 next combat. Gain Bleed 2.", "effects": { "gainStatus": { "nextCombatBuff": { "strength": 1 } }, "gainStatusSelf": { "Bleed": 2 } }, "resultText": "The bell answers from inside your ribs."},
-      {"text": "Ring twice", "description": "Gain a relic. Add two Dissonance.", "effects": { "gainRandomRelic": 1, "addCurse": "dissonance", "duplicateCard": "dissonance" }, "resultText": "The second toll draws blood from your ears and gifts from the dark."},
-      {"text": "Stay silent", "description": "Heal 8 HP.", "effects": { "gainHP": 8 }, "resultText": "Mercy, in this place, sounds like nothing at all."}
+      {
+        "text": "Ring once",
+        "description": "Gain Strength 1 next combat. Gain Bleed 2.",
+        "effects": {
+          "gainStatus": {
+            "nextCombatBuff": {
+              "strength": 1
+            }
+          },
+          "gainStatusSelf": {
+            "Bleed": 2
+          }
+        },
+        "resultText": "The bell answers from inside your ribs."
+      },
+      {
+        "text": "Ring twice",
+        "description": "Gain a relic. Add two Dissonance.",
+        "effects": {
+          "gainRandomRelic": 1,
+          "addCurse": "dissonance",
+          "duplicateCard": "dissonance"
+        },
+        "resultText": "The second toll draws blood from your ears and gifts from the dark."
+      },
+      {
+        "text": "Stay silent",
+        "description": "Heal 8 HP.",
+        "effects": {
+          "gainHP": 8
+        },
+        "resultText": "Mercy, in this place, sounds like nothing at all."
+      }
     ]
   },
   {
@@ -95,12 +318,211 @@
     "title": "Ash Garden",
     "description": "Dead flowers bloom in bursts of ember-light around your boots.",
     "act": 1,
-    "tags": ["burn", "heal", "combat"],
+    "tags": [
+      "burn",
+      "heal",
+      "combat"
+    ],
     "weight": 7,
     "choices": [
-      {"text": "Harvest ember", "description": "Gain Burn Offering.", "effects": { "gainCard": "burn_offering" }, "resultText": "You pluck a flower of heat and file it into memory."},
-      {"text": "Rest among ash", "description": "Heal 12 HP.", "effects": { "gainHP": 12 }, "resultText": "Even cinders can cradle the tired."},
-      {"text": "Burn it clean", "description": "Start combat. If you survive, gain a relic.", "effects": { "startCombat": "normal", "gainRandomRelic": 1 }, "resultText": "The garden screams and something predatory rises from the roots."}
+      {
+        "text": "Harvest ember",
+        "description": "Gain Burn Offering.",
+        "effects": {
+          "gainCard": "burn_offering"
+        },
+        "resultText": "You pluck a flower of heat and file it into memory."
+      },
+      {
+        "text": "Rest among ash",
+        "description": "Heal 12 HP.",
+        "effects": {
+          "gainHP": 12
+        },
+        "resultText": "Even cinders can cradle the tired."
+      },
+      {
+        "text": "Burn it clean",
+        "description": "Start combat. If you survive, gain a relic.",
+        "effects": {
+          "startCombat": "normal",
+          "gainRandomRelic": 1
+        },
+        "resultText": "The garden screams and something predatory rises from the roots."
+      }
+    ]
+  },
+  {
+    "id": "moth_choir",
+    "act": 1,
+    "title": "The Moth Choir",
+    "description": "Moths gather around a cold altar.",
+    "choices": [
+      {
+        "text": "Bleed for insight",
+        "effects": {
+          "loseHP": 8,
+          "upgradeRandomCard": 1
+        }
+      },
+      {
+        "text": "Offer a prayer",
+        "effects": {
+          "loseHP": 12,
+          "gainRandomRelic": "rare"
+        }
+      },
+      {
+        "text": "Leave",
+        "effects": {}
+      }
+    ]
+  },
+  {
+    "id": "ash_ledger",
+    "act": 1,
+    "title": "The Ash Ledger",
+    "description": "A ledger records every debt.",
+    "choices": [
+      {
+        "text": "Pay 40 Echoes to purge",
+        "requirements": {
+          "minGold": 40
+        },
+        "effects": {
+          "loseGold": 40,
+          "removeCard": 1
+        }
+      },
+      {
+        "text": "Transform a card for 25 Echoes",
+        "requirements": {
+          "minGold": 25
+        },
+        "effects": {
+          "loseGold": 25,
+          "transformCard": 1
+        }
+      },
+      {
+        "text": "Walk away",
+        "effects": {}
+      }
+    ]
+  },
+  {
+    "id": "saint_no_face",
+    "act": 1,
+    "title": "A Saint With No Face",
+    "description": "A faceless saint offers power.",
+    "choices": [
+      {
+        "text": "Take a rare memory",
+        "effects": {
+          "gainRandomCard": {
+            "rarity": "rare"
+          },
+          "maxHP": -5
+        }
+      },
+      {
+        "text": "Decline",
+        "effects": {}
+      }
+    ]
+  },
+  {
+    "id": "mouth_in_well",
+    "act": 1,
+    "title": "Mouth in the Well",
+    "description": "A voice asks for tribute.",
+    "choices": [
+      {
+        "text": "Take 60 Echoes and a curse",
+        "effects": {
+          "gainGold": 60,
+          "addCurse": "dissonance"
+        }
+      },
+      {
+        "text": "Challenge the voice",
+        "effects": {
+          "startCombat": "elite"
+        }
+      },
+      {
+        "text": "Back away",
+        "effects": {}
+      }
+    ]
+  },
+  {
+    "id": "sleeping_giant_bell",
+    "act": 1,
+    "title": "The Sleeping Giant Bell",
+    "description": "A giant bell hums beneath dust.",
+    "choices": [
+      {
+        "text": "Ring it (elite combat)",
+        "effects": {
+          "startCombat": "elite",
+          "gainRandomRelic": "boss"
+        }
+      },
+      {
+        "text": "Do not wake it",
+        "effects": {
+          "gainGold": 20
+        }
+      }
+    ]
+  },
+  {
+    "id": "candle_rain",
+    "act": 1,
+    "title": "Candle Rain",
+    "description": "Wax falls from the rafters.",
+    "choices": [
+      {
+        "text": "Gain Ward, lose 20 Echoes",
+        "effects": {
+          "gainWard": 1,
+          "loseGold": 20
+        }
+      },
+      {
+        "text": "Take a burning memory",
+        "effects": {
+          "gainCard": "burn_the_past"
+        }
+      },
+      {
+        "text": "Leave",
+        "effects": {}
+      }
+    ]
+  },
+  {
+    "id": "gentle_executioner",
+    "act": 1,
+    "title": "The Gentle Executioner",
+    "description": "A masked figure offers mercy.",
+    "choices": [
+      {
+        "text": "Purge a card",
+        "effects": {
+          "removeCard": 1,
+          "gainStatusSelf": {
+            "Weak": 1
+          }
+        }
+      },
+      {
+        "text": "Refuse",
+        "effects": {
+          "gainGold": 15
+        }
+      }
     ]
   }
 ]
