@@ -606,7 +606,7 @@ function fresh(){
   if(!M) loadMetaProfile();
   S = {
     body:null, weapon:null,
-    hp:72, maxHp:72, gold:95,
+    hp:BALANCE.playerBaseHP, maxHp:BALANCE.playerBaseHP, gold:20,
     deck:[], relics:["dull_whetstone"],
     x:70, y:350, zone:0,
     cleared:{}, falseEnding:false, truePilgrimage:false,
@@ -882,6 +882,22 @@ function openCompendium(){
   </div>`;
 }
 
+
+const BALANCE = {
+  playerBaseHP: 72,
+  normalRewardGoldMin: 15,
+  normalRewardGoldMax: 25,
+  eliteRewardGoldMin: 35,
+  eliteRewardGoldMax: 55,
+  shopPrices: { cardMin: 45, cardMax: 85, relicMin: 135, relicMax: 195, removalBase: 75, healBase: 50 },
+  rarityWeights: {
+    combat:BALANCE.rarityWeights.combat,
+    elite:BALANCE.rarityWeights.elite,
+    boss:{ common:0.2, uncommon:0.45, rare:0.35 }
+  },
+  mapGeneration: { stepsBeforeBoss: 12, minShopStep: 4, eliteStartStep: 3 },
+  difficultyModifiers: { hpPerDepth: 2, damagePerDepth: 0.08 }
+};
 const NODE_TYPES = ["combat","elite","event","rest","shop","treasure"];
 const NODE_ICONS = {combat:"⚔", elite:"💀", event:"?", rest:"✦", shop:"⚖", treasure:"◆", boss:"👁"};
 const NODE_RISK = {
@@ -2304,7 +2320,9 @@ async function victory(){
   pulseElement("#enemy", "anim-death", 420);
   playSfx("enemy_death");
   await sleep(scaledDelay(340));
-  S.kills++; gainGold(elite ? 65 : boss ? 100 : 30);
+  S.kills++;
+  const rewardGold = boss ? 90 : elite ? randInt(BALANCE.eliteRewardGoldMin, BALANCE.eliteRewardGoldMax) : randInt(BALANCE.normalRewardGoldMin, BALANCE.normalRewardGoldMax);
+  gainGold(rewardGold);
   S.combat = null;
   if(completionNode){
     const source = boss ? "boss" : elite ? "elite" : "combat";
@@ -2379,7 +2397,7 @@ function generateCardRewardChoices(source = "combat"){
   const weightsBySource = {
     combat:{ common:0.7, uncommon:0.25, rare:0.05 },
     elite:{ common:0.45, uncommon:0.4, rare:0.15 },
-    boss:{ common:0.2, uncommon:0.45, rare:0.35 },
+    boss:BALANCE.rarityWeights.boss,
     treasure:{ common:0.15, uncommon:0.5, rare:0.35 },
     event:{ common:0.4, uncommon:0.4, rare:0.2 }
   };
@@ -2499,3 +2517,18 @@ window.deleteActiveRun = deleteActiveRun;
 window.selectLoadout = selectLoadout;
 window.setDifficulty = setDifficulty;
 loadData();
+
+
+if (location.search.includes("debug=1") || localStorage.getItem("ashfallDebug") === "1") {
+  window.AshfallDebug = {
+    grantGold:(amount)=>{ gainGold(Number(amount)||0); drawWorld(); },
+    grantRelic:(id)=>{ addRelic(id); drawWorld(); },
+    addCard:(id)=>{ S.deck.push(createCardInstance(id)); drawWorld(); },
+    startCombat:(enemyId)=> startCombat(enemyId, "debug"),
+    winCombat:()=> finishCombat(true),
+    showMap:()=>{ setScreen("map"); drawWorld(); },
+    resetRun:()=>{ localStorage.removeItem(SAVE_KEY); location.reload(); },
+    printBuildSummary:()=>console.log(computeBuildSummary()),
+    simulateRewards:(count=5)=>{ for(let i=0;i<count;i++) console.log(rollCardRewardPool("combat")); }
+  };
+}

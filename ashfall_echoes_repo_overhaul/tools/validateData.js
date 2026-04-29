@@ -17,6 +17,8 @@ let errors = [];
 const validCardRarity = new Set(["common", "uncommon", "rare"]);
 const validArchetypes = new Set(["bleed", "block", "curse", "tempo", "burn", "ward", "strength", "control"]);
 const validRelicRarity = new Set(["Common", "Uncommon", "Rare", "Cursed"]);
+const validRelicTier = new Set(["common","uncommon","rare","boss"]);
+const warnings = [];
 const validRelicHooks = new Set([
   "modifyDamageFirstAttack","firstBlockBonus","firstCardFree","bleedThorn","thirdSkillBlock","firstTurnEnergy",
   "attackVsBurned","wardLethalSave","combatStartDebtBell","firstCurseFree","retainBlock","extraBleedTickBoss",
@@ -71,7 +73,8 @@ if (loadouts) {
   }
 }
 
-for (const [cid, c] of Object.entries(cards)) {
+const cardEntries = Object.entries(cards);
+for (const [cid, c] of cardEntries) {
   if (!c.name || !c.type || c.cost === undefined || !c.text) errors.push(`Card ${cid} missing required fields`);
   if (!validCardRarity.has(c.rarity)) errors.push(`Card ${cid} has invalid rarity ${c.rarity}`);
   if (!Array.isArray(c.archetypes) || !c.archetypes.length) errors.push(`Card ${cid} missing archetypes`);
@@ -130,12 +133,14 @@ for (const [eid, e] of Object.entries(enemies)) {
   }
 }
 
-for (const [rid, r] of Object.entries(relics)) {
+const relicEntries = Object.entries(relics);
+for (const [rid, r] of relicEntries) {
   if (!r.name || !r.text || !r.rarity) errors.push(`Relic ${rid} missing required fields`);
   if (!validRelicRarity.has(r.rarity)) errors.push(`Relic ${rid} has invalid rarity ${r.rarity}`);
   if (!Array.isArray(r.archetypes) || !r.archetypes.length) errors.push(`Relic ${rid} missing archetypes`);
   for (const a of r.archetypes || []) if (!validArchetypes.has(a)) errors.push(`Relic ${rid} has invalid archetype ${a}`);
   if (r.hook && !validRelicHooks.has(r.hook)) errors.push(`Relic ${rid} has unknown hook ${r.hook}`);
+  if (!r.tier || !validRelicTier.has(String(r.tier).toLowerCase())) errors.push(`Relic ${rid} has invalid tier ${r.tier}`);
   if (r.curses) for (const cid of r.curses) if (!cards[cid]) errors.push(`Relic ${rid} references missing curse ${cid}`);
 }
 
@@ -172,6 +177,31 @@ for (const event of Array.isArray(events) ? events : []) {
     if (choice.requirements?.minGold !== undefined && choice.requirements.minGold < 0) errors.push(`Event ${event.id} choice ${choice.text || "?"} has impossible minGold`);
   }
 }
+
+const rarityCounts = { common:0, uncommon:0, rare:0 };
+for (const [, c] of cardEntries) {
+  const r = String(c.rarity || "").toLowerCase();
+  if (rarityCounts[r] !== undefined) rarityCounts[r] += 1;
+  if (c.cost < -1 || c.cost > 5) warnings.push(`Card ${c.name || "unknown"} has unusual cost ${c.cost}`);
+  if (!c.upgrade || (!c.upgradedName && !c.upgradedText)) errors.push(`Card ${c.name || "unknown"} missing upgrade data`);
+}
+if (cardEntries.length < 45) warnings.push(`Card pool low: ${cardEntries.length} < 45`);
+if (Object.keys(relics).length < 35) warnings.push(`Relic pool low: ${Object.keys(relics).length} < 35`);
+const enemyEntries = Object.entries(enemies);
+const act1Normals = enemyEntries.filter(([,e])=>e.act===1 && e.tier==="normal");
+const act1Elites = enemyEntries.filter(([,e])=>e.act===1 && e.tier==="elite");
+const act1Bosses = enemyEntries.filter(([,e])=>e.act===1 && e.tier==="boss");
+if (act1Normals.length < 12) warnings.push(`Act 1 normal enemies low: ${act1Normals.length} < 12`);
+if (act1Elites.length < 5) warnings.push(`Act 1 elites low: ${act1Elites.length} < 5`);
+if (act1Bosses.length < 2) warnings.push(`Act 1 bosses low: ${act1Bosses.length} < 2`);
+for (const [eid,e] of enemyEntries) if (!(Number(e.hp) > 0)) errors.push(`Enemy ${eid} has non-positive hp`);
+if ((Array.isArray(events)?events.length:0) < 15) warnings.push(`Event pool low: ${(Array.isArray(events)?events.length:0)} < 15`);
+
+if (warnings.length) {
+  console.warn("Validation warnings:");
+  warnings.forEach(w => console.warn(" - " + w));
+}
+
 if (errors.length) {
   console.error("Validation failed:");
   errors.forEach(e => console.error(" - " + e));
