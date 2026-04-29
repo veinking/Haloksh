@@ -95,7 +95,7 @@ const clone = (x) => JSON.parse(JSON.stringify(x));
 const shuffle = (a) => a.sort(() => Math.random() - 0.5);
 const pick = (a) => a[Math.floor(Math.random() * a.length)];
 const JUICE_QUEUE = Promise.resolve();
-const SFX_NAMES = ["card_play","attack_light","attack_heavy","block","heal","status","ward","burn_tick","bleed_tick","enemy_attack","enemy_death","boss_phase","reward_card","reward_relic","buy","error","button","map_node","rest","event_choice"];
+const SFX_NAMES = ["card_play","attack_light","attack_heavy","block","heal","status","ward","burn_tick","bleed_tick","enemy_attack","enemy_death","boss_phase","reward_card","reward_relic","buy","error","button","map_node","rest","event_choice","victory","defeat"];
 const sfxState = { cache:new Map(), recent:new Map(), manifest:null };
 
 function getSettings(){
@@ -2624,10 +2624,13 @@ window.setDifficulty = setDifficulty;
 function renderFatalStartupError(err){
   const message = (err && (err.message || String(err))) || "Unknown startup error";
   const host = document.getElementById("app") || document.getElementById("game") || document.body;
-  host.innerHTML = `<div class="screen error-screen"><div class="panel" style="margin:12px"><h2>Something broke in the Hollow.</h2><p class="small">${message}</p><div class="menu-list"><button onclick="clearCorruptSave(); location.reload();">Clear Active Run</button><button onclick="location.reload();">Return to Title</button></div></div></div>`;
+  host.innerHTML = `<div class="screen error-screen"><div class="panel" style="margin:12px"><h2>Something broke in the Hollow.</h2><p class="small">${message}</p><div class="menu-list"><button onclick="copyDebugReport()">Copy Error Details</button><button onclick="clearCorruptSave(); location.reload();">Clear Active Run</button><button onclick="title()">Return to Title</button></div></div></div>`;
 }
 
 function bootApp(){
+  if(!G){
+    throw new Error("Missing #game root element.");
+  }
   loadData();
 }
 
@@ -2640,15 +2643,18 @@ try {
 
 if (location.search.includes("debug=1") || localStorage.getItem("ashfallDebug") === "1") {
   window.AshfallDebug = {
+    newRun:()=>{ fresh(); chars(); },
     grantGold:(amount)=>{ gainGold(Number(amount)||0); drawWorld(); },
-    grantRelic:(id)=>{ addRelic(id); drawWorld(); },
     addCard:(id)=>{ S.deck.push(createCardInstance(id)); drawWorld(); },
+    grantRelic:(id)=>{ addRelic(id); drawWorld(); },
     startCombat:(enemyId)=> startCombat(enemyId, "debug"),
     winCombat:()=> finishCombat(true),
+    loseCombat:()=> finishCombat(false),
     showMap:()=>{ setScreen("map"); drawWorld(); },
-    resetRun:()=>{ localStorage.removeItem(RUN_SAVE_KEY); location.reload(); },
-    printBuildSummary:()=>console.log(computeBuildSummary()),
-    simulateRewards:(count=5)=>{ for(let i=0;i<count;i++) console.log(rollCardRewardPool("combat")); }
+    clearSave:()=>{ localStorage.removeItem(RUN_SAVE_KEY); location.reload(); },
+    clearMeta:()=>{ localStorage.removeItem(META_PROFILE_KEY); location.reload(); },
+    exportDebugReport:()=>exportDebugReport(),
+    simulateReward:(count=5)=>{ for(let i=0;i<count;i++) console.log(rollCardRewardPool("combat")); }
   };
 }
 
